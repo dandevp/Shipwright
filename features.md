@@ -43,7 +43,8 @@ enemies between teammates, so they can play through the same areas together.
     instead of the fight starting over.
   - If the authority leaves the room or pauses for more than a second, another player in the room takes over.
   - A player coming back from a pause doesn't take over again, their enemies stood still meanwhile.
-- Hitting a puppet hits the authority's enemy, with its own damage table, reaction and death.
+- Hitting a puppet hits the authority's enemy, with its own damage table, reaction and death. That goes for what you
+  shoot, throw or set off too: arrows, slingshot seeds, bombs, and a Deku Nut's flash stunning it.
 - On the authority, enemies go after the most dangerous player in the room: whoever dealt them the most damage. While
   nobody has hurt them yet, they go after the nearest player, and switch once another one is clearly closer. Their hits
   on a teammate hurt that teammate.
@@ -164,10 +165,13 @@ enemies between teammates, so they can play through the same areas together.
 
 - Teammates' dummy players are drawn with their own Link model and equipment (a custom model, a sword replacement,
   ...) while you keep yours, and with vanilla Link when they have none, never with your model.
-- A model is everything under `objects/object_link_boy*` and `objects/object_link_child*`, tunic specific skeletons and
-  display lists included. Parts a model doesn't replace are vanilla.
-- Your model is the Link files of your enabled mods. Under Network > Anchor > Your Link Model you pick which of your
-  mods teammates see you with (your own Link still follows the mod menu).
+- A model is everything under `objects/object_link_boy*`, `objects/object_link_child*` and
+  `objects/object_custom_equip` (custom equipment: swords and shields in their sheath, first person hands, ...), tunic
+  specific skeletons and display lists included. It's drawn by the teammate's own equipment, tunic and boots. Parts a
+  model doesn't replace are vanilla.
+- Your model is the Link files of your enabled mods, as you have them equipped (it follows alternate assets being
+  toggled). Under Network > Anchor > Your Link Model you can leave some of your mods out of what teammates see (your own
+  Link still follows the mod menu).
 - Models are sent between teammates through the Anchor server: a teammate who doesn't have yours yet is asked whether
   to download it (or downloads it always / never, a setting under Your Link Model). It's sent a little every frame and
   checked against its id before it's used, then kept in the `anchor-models` folder, so each model is only sent once.

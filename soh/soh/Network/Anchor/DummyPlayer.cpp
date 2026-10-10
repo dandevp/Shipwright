@@ -270,6 +270,20 @@ void DummyPlayer_Draw(Actor* actor, PlayState* play) {
     gSaveContext.linkAge = client.linkAge;
     u8 originalButtonItem0 = gSaveContext.equips.buttonItems[0];
     gSaveContext.equips.buttonItems[0] = client.buttonItem0;
+    // Their equipment too, which custom equipment picks its parts by (see customequipment.cpp)
+    u16 originalEquipment = gSaveContext.equips.equipment;
+    u16 sword = client.buttonItem0 == ITEM_SWORD_KOKIRI   ? EQUIP_VALUE_SWORD_KOKIRI
+                : client.buttonItem0 == ITEM_SWORD_MASTER ? EQUIP_VALUE_SWORD_MASTER
+                : client.buttonItem0 == ITEM_SWORD_BGS    ? EQUIP_VALUE_SWORD_BIGGORON
+                                                          : EQUIP_VALUE_SWORD_NONE;
+    u16 boots = (client.currentBoots == PLAYER_BOOTS_IRON || client.currentBoots == PLAYER_BOOTS_IRON_UNDERWATER)
+                    ? EQUIP_VALUE_BOOTS_IRON
+                : client.currentBoots == PLAYER_BOOTS_HOVER ? EQUIP_VALUE_BOOTS_HOVER
+                                                            : EQUIP_VALUE_BOOTS_KOKIRI;
+    // Set directly, Inventory_ChangeEquipment would tell everything our own equipment changed
+    gSaveContext.equips.equipment =
+        (sword << gEquipShifts[EQUIP_TYPE_SWORD]) | (client.currentShield << gEquipShifts[EQUIP_TYPE_SHIELD]) |
+        ((client.currentTunic + 1) << gEquipShifts[EQUIP_TYPE_TUNIC]) | (boots << gEquipShifts[EQUIP_TYPE_BOOTS]);
 
     {
         // Teammates are drawn with their own model and equipment, not ours (see PuppetModels.h). A model can be tried
@@ -291,6 +305,7 @@ void DummyPlayer_Draw(Actor* actor, PlayState* play) {
     }
     gSaveContext.linkAge = originalAge;
     gSaveContext.equips.buttonItems[0] = originalButtonItem0;
+    gSaveContext.equips.equipment = originalEquipment;
 }
 
 void DummyPlayer_Destroy(Actor* actor, PlayState* play) {

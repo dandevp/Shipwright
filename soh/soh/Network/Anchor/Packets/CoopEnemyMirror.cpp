@@ -1513,6 +1513,11 @@ struct CoopChildCount {
     s16 count;
 };
 static ObjectExtension::Register<CoopChildCount> CoopChildCountRegister;
+
+// Actors our player spawned, directly or through something they spawned (see OnCoopActorSpawned)
+struct CoopOwnedByUs {};
+static ObjectExtension::Register<CoopOwnedByUs> CoopOwnedByUsRegister;
+
 static ObjectExtension::Register<CoopPuppet> CoopPuppetRegister;
 
 struct CoopMirroredObject {
@@ -2365,7 +2370,8 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
 
         // Our sword, or something we shot or threw
         Actor* attacker = collider->ac;
-        if (attacker == nullptr || (attacker != &player->actor && attacker->parent != &player->actor)) {
+        if (attacker == nullptr || (attacker != &player->actor && attacker->parent != &player->actor &&
+                                    !ObjectExtension::GetInstance().Has<CoopOwnedByUs>(attacker))) {
             continue;
         }
 
@@ -3166,6 +3172,14 @@ static bool IsOwnCoopShot(Actor* actor) {
 
 // Something spawned while a mirrored enemy we run updates, like an Octorok's rock or a Mad Scrub's nut
 void Anchor::OnCoopActorSpawned(Actor* actor) {
+    // What our player spawns is ours, and so is what that spawns in turn (a Deku Nut's flash, an arrow's fire). Its
+    // hits on puppets go to the authority like our sword's, it no longer has our player as its parent once let go.
+    if (coopUpdatingActor != nullptr && coopUpdatingActor != actor &&
+        (coopUpdatingActor == &GET_PLAYER(gPlayState)->actor ||
+         ObjectExtension::GetInstance().Has<CoopOwnedByUs>(coopUpdatingActor))) {
+        ObjectExtension::GetInstance().Set<CoopOwnedByUs>(actor, CoopOwnedByUs{});
+    }
+
     // Not what a boss spawns in its intro or defeat (doors, blue warp, heart container), every player has their own
     if (coopUpdatingActor == nullptr || coopUpdatingActor == actor || actor->id == ACTOR_EN_ITEM00 ||
         actor->id == ACTOR_EN_ELF || !IsCoopMirroredEnemy(coopUpdatingActor) || !IsMirroredNow(coopUpdatingActor) ||

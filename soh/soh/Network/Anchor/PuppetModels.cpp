@@ -348,7 +348,8 @@ bool EnsureVanillaModel() {
 } // namespace
 
 bool IsModelPath(const std::string& path) {
-    return path.starts_with("objects/object_link_boy") || path.starts_with("objects/object_link_child");
+    return path.starts_with("objects/object_link_boy") || path.starts_with("objects/object_link_child") ||
+           path.starts_with("objects/object_custom_equip");
 }
 
 bool Load(const std::string& modelId, const std::string& archivePath) {
@@ -480,6 +481,13 @@ extern "C" const char* PuppetModels_Resolve(const char* path) {
     }
 
     return sResolvedPaths.insert(std::string(OTR_SIGNATURE) + target).first->c_str();
+}
+
+extern "C" int32_t PuppetModels_HasFile(const char* path) {
+    if (sScope == nullptr || path == nullptr) {
+        return -1;
+    }
+    return sScope->model != nullptr && sScope->model->archive->Has(WithoutAltPrefix(StripSignature(path)));
 }
 
 extern "C" int32_t PuppetModels_IsCustomSkeleton(const char* skeletonPath) {

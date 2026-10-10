@@ -16,7 +16,8 @@ struct SkelAnime;
  * limbs, skeletons) are pointed at the moved paths. While a dummy player draws, the lookups of Link's files go to its
  * model, then to the vanilla model (the base game's Link files, moved the same way), never to our own mods.
  *
- * A model is everything under objects/object_link_boy* and objects/object_link_child*.
+ * A model is everything under objects/object_link_boy*, objects/object_link_child* and objects/object_custom_equip
+ * (SoH's custom equipment, see customequipment.cpp).
  */
 namespace PuppetModels {
 
@@ -48,6 +49,8 @@ extern "C" {
 
 // While a dummy player draws: the path of its model's copy of a Link file, else NULL
 const char* PuppetModels_Resolve(const char* path);
+// While a dummy player draws: whether its model has a file (like a custom equipment part), else -1
+int32_t PuppetModels_HasFile(const char* path);
 // While a dummy player draws: whether its model replaces Link's skeleton, else -1
 int32_t PuppetModels_IsCustomSkeleton(const char* skeletonPath);
 
