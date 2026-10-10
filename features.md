@@ -276,3 +276,45 @@ enemies between teammates, so they can play through the same areas together.
   NPCs that spawn helpers or walk a set path may act oddly after respawning.
 - NPC movement and conversations aren't shared.
 - Cutscenes only play for the player who triggers them (like the Deku Tree opening its mouth). Their outcome is shared.
+
+## To do
+
+### Testing
+
+None of these have been tested in the game yet:
+
+- [ ] Two clients in co-op: rocks breaking when thrown, the carrying pose, and Deku Nut, arrow, seed and bomb hits on
+  enemies a teammate runs
+- [ ] The room owner's enemy settings: seeded enemy randomizer, enemy sizes and Hyper Enemies/Bosses reaching
+  teammates, and New Enemy Seed
+- [ ] Different seeds, including two Archipelago slots: a pot holding one of your checks stays for you, no drops cross
+  over
+- [ ] Per-player models with a real model mod and a custom equipment mod (the PuppetModelTestPath developer CVar works
+  with a single client), then sending a model between two clients
+- [ ] The model picker on your own Link: leaving mods out and back in, the pause screen, toggling alternate assets
+- [ ] Matching gameplay mods: Match and Close renaming the files at the next start, Restore Mods Disabled for Co-op
+- [ ] Archipelago: connecting to a slot, sending and receiving items, file select, and the slot options mapped onto
+  the reworked randomizer settings (Ganon's Boss Key triggers, Triforce Hunt, Zelda's Letter, Kakariko gate)
+
+### Anchor server
+
+- [ ] Pass on unknown fields of the room state (`coopSettings`, `coopEnemySeed`) and the client state (`modelId`,
+  `modelSize`, `modsHash`, `mods`)
+- [ ] Relay `MODEL_REQUEST` and `MODEL_CHUNK`, and accept messages of about 50 KB
+- [ ] Optionally keep models by their hash, so each is uploaded once
+
+### Open gaps
+
+- [ ] Ocarina: the game replaying a recognized song and the song's jingle aren't heard by teammates, only notes
+  played by hand
+- [ ] Boss Souls across seeds: without its soul a boss doesn't appear for you, how mirroring copes with that is
+  untested
+- [ ] A breakable that isn't loaded yet when a teammate on another seed breaks theirs stays whole for you
+- [ ] Saves of the official Archipelago client (1.4.x) don't load correctly, their file type is now Speedrun's
+- [ ] The Archipelago client comes from a May 2026 branch, older than the 1.4.2 release, newer client fixes may be
+  missing
+- [ ] Matching mods doesn't compare their load order, and doesn't look into old `.otr` mods
+- [ ] Short hitches: looking into the mods when connecting, building our model at start
+- [ ] Models are mounted while the game runs, without locking against resources loading on other threads
+- [ ] Model mods using `.meta` alias files aren't supported for per-player models
+- [ ] The model picker has no live preview
