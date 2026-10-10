@@ -177,6 +177,9 @@ enemies between teammates, so they can play through the same areas together.
   to download it (or downloads it always / never, a setting under Your Link Model). It's sent a little every frame and
   checked against its id before it's used, then kept in the `anchor-models` folder, so each model is only sent once.
   Models over 64 MB aren't sent.
+- The Anchor server keeps the models that pass through it too (after checking them against their id) and sends them
+  itself to whoever asks for them later, so each model is uploaded once. The server's `MODEL_CACHE_MB` (2048 by
+  default, 0 turns it off) limits how much it keeps, the least recently used go first.
 - A model can be tried out locally on all dummy players with the `gRemote.Anchor.Developer.PuppetModelTestPath` CVar
   (the path of a model `.o2r`).
 
@@ -200,10 +203,6 @@ enemies between teammates, so they can play through the same areas together.
   pack and a gameplay mod counts as a gameplay mod. Old `.otr` mods aren't looked into.
 - Looking into the enabled mods when connecting reads the start of each of their files, which may take a moment with
   big texture packs.
-- Sending models needs the Anchor server to keep `modelId` and `modelSize` in the client state it passes on, to relay
-  `MODEL_REQUEST` and `MODEL_CHUNK` like other packets, and to accept messages of about 50 KB.
-- The room owner's enemy settings need the Anchor server to pass the whole room state on to the other players
-  (`coopSettings` and `coopEnemySeed` next to `coopSync`).
 - Every other enemy type only shares its health and death, and runs its own AI for each player. Among them:
   - Peahat, Tailpasaran, Shabom
   - the Deku Scrubs of the Deku Tree puzzle
@@ -298,10 +297,11 @@ None of these have been tested in the game yet:
 
 ### Anchor server
 
-- [ ] Pass on unknown fields of the room state (`coopSettings`, `coopEnemySeed`) and the client state (`modelId`,
-  `modelSize`, `modsHash`, `mods`)
-- [ ] Relay `MODEL_REQUEST` and `MODEL_CHUNK`, and accept messages of about 50 KB
-- [ ] Optionally keep models by their hash, so each is uploaded once
+- [x] Pass on unknown fields of the room state (`coopSettings`, `coopEnemySeed`) and the client state (`modelId`,
+  `modelSize`, `modsHash`, `mods`): the server already keeps both as they come in
+- [x] Relay `MODEL_REQUEST` and `MODEL_CHUNK`, and accept messages of about 50 KB: packets with a `targetClientId` are
+  relayed whatever their type, and messages of up to 8 MB are accepted
+- [x] Keep models by their hash, so each is uploaded once (anchor `coop-model-cache` branch, not on the public server)
 
 ### Open gaps
 
