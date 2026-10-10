@@ -119,6 +119,16 @@ void Anchor::RegisterHooks() {
         SendCoopEnemySnapshots();
     });
 
+    COND_HOOK(OnPlayDrawEnd, isConnected, [&]() {
+        Player* player = GET_PLAYER(gPlayState);
+        if (player == nullptr || player->skelAnime.jointTable == nullptr) {
+            drawnPosePlayer = nullptr;
+            return;
+        }
+        drawnPosePlayer = player;
+        memcpy(drawnPoseJointTable, player->skelAnime.jointTable, sizeof(drawnPoseJointTable));
+    });
+
     COND_HOOK(OnPlayerSfx, isConnected, [&](u16 sfxId) { SendPacket_PlayerSfx(sfxId); });
     COND_HOOK(OnOcarinaNote, isConnected,
               [&](uint8_t note, float modulator, int8_t bend) { SendPacket_OcarinaSfx(note, modulator, bend); });
@@ -286,6 +296,13 @@ void Anchor::RegisterHooks() {
     COND_VB_SHOULD(VB_SMALL_CRATE_DROP_ITEM, isConnected,
                    { Anchor::Instance->OnCoopActorBroken(va_arg(args, Actor*)); });
     COND_VB_SHOULD(VB_CRATE_DROP_ITEM, isConnected, { Anchor::Instance->OnCoopActorBroken(va_arg(args, Actor*)); });
+    // Bronze boulders and bombable rocks fire it too, they set a switch flag instead
+    COND_VB_SHOULD(VB_ROCK_DROP_ITEM, isConnected, {
+        Actor* actor = va_arg(args, Actor*);
+        if (actor->id == ACTOR_EN_ISHI) {
+            Anchor::Instance->OnCoopActorBroken(actor);
+        }
+    });
 
     // Track which actor is updating, to tell which actor spawned a drop, and share enemy health after each update.
     // Mirrored enemies run by a teammate don't run their own update, they follow the teammate's instead, and the ones

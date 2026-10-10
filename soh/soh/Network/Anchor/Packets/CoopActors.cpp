@@ -15,6 +15,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_Boss_Va/z_boss_va.h"
 #include "src/overlays/actors/ovl_En_Bom/z_en_bom.h"
 #include "src/overlays/actors/ovl_En_Bombf/z_en_bombf.h"
+#include "src/overlays/actors/ovl_En_Ishi/z_en_ishi.h"
 #include "src/overlays/actors/ovl_En_Kusa/z_en_kusa.h"
 #include "src/overlays/actors/ovl_Obj_Kibako/z_obj_kibako.h"
 #include "src/overlays/actors/ovl_Obj_Kibako2/z_obj_kibako2.h"
@@ -25,6 +26,11 @@ void EnKusa_Main(EnKusa* enKusa, PlayState* play);
 void EnKusa_SetupCut(EnKusa* enKusa);
 void EnKusa_SpawnBugs(EnKusa* enKusa, PlayState* play);
 void EnKusa_SpawnFragments(EnKusa* enKusa, PlayState* play);
+void EnIshi_Wait(EnIshi* enIshi, PlayState* play);
+void EnIshi_SpawnFragmentsSmall(EnIshi* enIshi, PlayState* play);
+void EnIshi_SpawnFragmentsLarge(EnIshi* enIshi, PlayState* play);
+void EnIshi_SpawnDustSmall(EnIshi* enIshi, PlayState* play);
+void EnIshi_SpawnDustLarge(EnIshi* enIshi, PlayState* play);
 void ObjKibako_AirBreak(ObjKibako* objKibako, PlayState* play);
 void ObjKibako_Idle(ObjKibako* objKibako, PlayState* play);
 void ObjKibako2_Break(ObjKibako2* objKibako2, PlayState* play);
@@ -36,8 +42,9 @@ void ObjTsubo_Idle(ObjTsubo* objTsubo, PlayState* play);
 /**
  * COOP_ACTOR_DESTROYED, COOP_ENEMY_HEALTH, COOP_ITEM_DROP, COOP_ITEM_COLLECTED
  *
- * When a player breaks grass, a pot or a crate, it breaks for teammates in the same room too. Its drops are rolled once
- * by the player who broke it and appear for everyone, and whoever picks one up first removes it for the others.
+ * When a player breaks grass, a pot, a crate or a rock, it breaks for teammates in the same room too. Its drops are
+ * rolled once by the player who broke it and appear for everyone, and whoever picks one up first removes it for the
+ * others.
  *
  * Enemies placed in the room share their health: every hit lowers it for everyone, and when one dies it dies for
  * everyone, with the killer's drops shared like above. Each player still runs the enemy's AI against themselves, so
@@ -160,6 +167,7 @@ void SetCoopHealth(Actor* actor, s32 health) {
 static bool IsCoopDestructible(Actor* actor) {
     switch (actor->id) {
         case ACTOR_EN_KUSA:
+        case ACTOR_EN_ISHI:
         case ACTOR_OBJ_KIBAKO:
         case ACTOR_OBJ_KIBAKO2:
         case ACTOR_OBJ_TSUBO:
@@ -293,6 +301,20 @@ static void BreakCoopActor(Actor* actor) {
             }
             return;
         }
+        case ACTOR_EN_ISHI:
+            if (((EnIshi*)actor)->actionFunc == EnIshi_Wait) {
+                if ((actor->params & 1) == ROCK_SMALL) {
+                    EnIshi_SpawnFragmentsSmall((EnIshi*)actor, gPlayState);
+                    EnIshi_SpawnDustSmall((EnIshi*)actor, gPlayState);
+                    SoundSource_PlaySfxAtFixedWorldPos(gPlayState, &actor->world.pos, 20, NA_SE_EV_ROCK_BROKEN);
+                } else {
+                    EnIshi_SpawnFragmentsLarge((EnIshi*)actor, gPlayState);
+                    EnIshi_SpawnDustLarge((EnIshi*)actor, gPlayState);
+                    SoundSource_PlaySfxAtFixedWorldPos(gPlayState, &actor->world.pos, 40, NA_SE_EV_WALL_BROKEN);
+                }
+            }
+            Actor_Kill(actor);
+            return;
         case ACTOR_OBJ_TSUBO:
             if (((ObjTsubo*)actor)->actionFunc == ObjTsubo_Idle) {
                 ObjTsubo_AirBreak((ObjTsubo*)actor, gPlayState);

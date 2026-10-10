@@ -153,6 +153,10 @@ class Anchor : public Network {
     uint32_t spawningDummyPlayerForClientId = 0;
     bool shouldRefreshActors = false;
     bool justLoadedSave = false;
+    // Our player's pose as it was last drawn, with the upper body animation (like carrying something) and blending
+    // applied. Those only happen after all actors updated, after PLAYER_UPDATE is put together.
+    Player* drawnPosePlayer = nullptr;
+    Vec3s drawnPoseJointTable[24];
     bool isHandlingUpdateTeamState = false;
     bool isProcessingIncomingPacket = false;
     s8 lastCoopRoomNum = -1;

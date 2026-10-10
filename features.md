@@ -20,14 +20,14 @@ enemies between teammates, so they can play through the same areas together.
 - Boss fights in progress: a teammate entering a boss room after the fight started skips the intro.
 - Entering a scene or room catches up with a teammate already there:
   - flags
-  - destroyed grass, pots, crates and enemies
+  - destroyed grass, pots, crates, rocks and enemies
   - pushed blocks, turned statues and lit torches
   - the health of the enemies still alive
 - Like in vanilla, a room resets once nobody is in it anymore.
 
-### Grass, pots and crates
+### Grass, pots, crates and rocks
 
-- Breaking one breaks it for everyone in the room.
+- Breaking one breaks it for everyone in the room, whether it was cut, blown up or thrown. Silver rocks included.
 - Its drops are rolled once, by the player who broke it, and appear for everyone. Whoever picks a drop up first removes
   it for the others.
 - Each drop is adapted to whoever gets it, like in vanilla (e.g. arrows become rupees without a bow).
@@ -111,6 +111,8 @@ enemies between teammates, so they can play through the same areas together.
 
 - Teammates see what you carry in your hands, flying when you throw it, landing where you put it down. That covers
   pots, bushes, crates, rocks and Cuccos placed in the room, as well as bombs, Bomb Flower bombs and anything else.
+- A teammate's player model shows the same pose as in their own game, including upper body animations like holding
+  something over their head (sent as drawn, with animation blending, one frame behind their position).
 - A teammate's bomb blows up in your game when it does in theirs. It is only the look and sound: its effects happen in
   their game and reach you through the rest of the sync.
 - Copies of a teammate's bombs don't count towards your own bomb limit.
@@ -193,7 +195,6 @@ enemies between teammates, so they can play through the same areas together.
 
 ### Carrying
 
-- Rocks thrown by a teammate don't break in your game, they stay where they landed.
 - Picking a bomb off a Bomb Flower doesn't empty it for teammates until they reload the area.
 - Objects placed in the room are followed for at most 60 frames after being thrown, or until they land.
 - Bombchus aren't shown.
