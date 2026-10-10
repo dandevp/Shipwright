@@ -2,6 +2,7 @@
 
 #include "Anchor.h"
 #include "CoopSettings.h"
+#include "PuppetModels.h"
 #include "soh/SohGui/SohGui.hpp"
 #include "soh/SohGui/SohMenu.h"
 #include "soh/util.h"
@@ -35,6 +36,14 @@ static void DrawCoopModelPicker(Anchor* anchor) {
             }
         }
         ImGui::Text("Model: %s", anchor->GetOwnModelId().empty() ? "vanilla" : anchor->GetOwnModelId().c_str());
+        UIWidgets::CVarCheckbox("Show It Next to Link", CVAR_REMOTE_ANCHOR("Model.Preview"),
+                                UIWidgets::CheckboxOptions()
+                                    .DefaultValue(true)
+                                    .Tooltip("While this is open, your model stands next to Link, turning around")
+                                    .Color(THEME_COLOR));
+        if (CVarGetInteger(CVAR_REMOTE_ANCHOR("Model.Preview"), 1)) {
+            PuppetModels::ShowPreview();
+        }
 
         UIWidgets::PushStyleButton(THEME_COLOR);
         if (ImGui::Button("Restore Mods Disabled for Co-op")) {

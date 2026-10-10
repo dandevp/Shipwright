@@ -1089,6 +1089,11 @@ void OTRAudio_Init() {
     }
 }
 
+std::unique_lock<std::mutex> OTRAudio_LockForArchiveChanges() {
+    // The audio thread holds this while it runs
+    return std::unique_lock<std::mutex>(audio.mutex);
+}
+
 // C->C++ Bridge
 extern "C" char** sequenceMap;
 extern "C" size_t sequenceMapSize;

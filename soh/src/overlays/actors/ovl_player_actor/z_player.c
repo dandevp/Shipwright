@@ -12557,6 +12557,11 @@ void Player_Draw(Actor* thisx, PlayState* play2) {
     if (isOwnModelDraw) {
         PuppetModels_EndOwnDraw();
     }
+
+    // SOH [Co-op] The model picker in the Anchor menu shows its model next to our Link
+    if (thisx == &GET_PLAYER(play)->actor && !(this->stateFlags2 & PLAYER_STATE2_DISABLE_DRAW)) {
+        PuppetModels_DrawPreview(play, this);
+    }
 }
 
 void Player_Destroy(Actor* thisx, PlayState* play) {

@@ -14,6 +14,7 @@
 #include "soh/ObjectExtension/ActorListIndex.h"
 #include "soh/ResourceManagerHelpers.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
+#include "soh/Enhancements/randomizer/hook_handlers.h"
 
 extern "C" {
 #include "macros.h"
@@ -308,6 +309,11 @@ void EnVali_Lurk(EnVali* enVali, PlayState* play);
  * authority's after each update. Hits on it still go to the authority, its health always comes from the authority,
  * and what it spawns comes from the authority too. Its attacks hurt whoever they hit in their own game, so the
  * authority's boss hitting a teammate's dummy player doesn't count.
+ *
+ * In the randomizer, a boss whose soul a player hasn't found yet doesn't appear in their game at all, so they take no
+ * part in its fight: they never run the room for the others, get no puppet of the boss, and the boss doesn't go after
+ * them or hit them. Finding the soul while in the room changes nothing until the room is entered again, like without
+ * co-op.
  *
  * A few moving platforms and traps are mirrored too, so they move in step for everyone. Unlike enemies they keep
  * running their own update (so they move smoothly and still hurt you), and are just nudged towards the authority's
@@ -1669,15 +1675,22 @@ void Anchor::UpdateCoopRoomAuthority() {
         }
     }
 
-    if (authority == UINT32_MAX && (!hasPeers || coopRoomFrames > AUTHORITY_CLAIM_DELAY_FRAMES)) {
+    // Without the room's boss, we have nothing to run for those who have it
+    bool canClaim = !IsOwnBossLeftOut();
+    if (canClaim && authority == UINT32_MAX && (!hasPeers || coopRoomFrames > AUTHORITY_CLAIM_DELAY_FRAMES)) {
         coopClaimsAuthority = true;
     }
-    if (coopClaimsAuthority) {
+    if (coopClaimsAuthority && canClaim) {
         authority = std::min(authority, ownClientId);
     }
 
     coopClaimsAuthority = authority == ownClientId;
     coopRoomAuthority = authority == UINT32_MAX ? 0 : authority;
+}
+
+// Without the soul of the scene's boss, our game left it out (see Randomizer_IsCurrentBossSoulMissing)
+bool Anchor::IsOwnBossLeftOut() {
+    return IS_RANDO && Randomizer_IsCurrentBossSoulMissing();
 }
 
 // 0 while nobody runs the room yet (we just entered it), then everyone's enemies run by themselves
@@ -2046,7 +2059,8 @@ void Anchor::HandlePacket_CoopEnemySnapshot(nlohmann::json payload) {
 
 // An enemy the authority has, spawned during the fight by another one, that we don't have yet
 Actor* Anchor::SpawnCoopPuppet(const CoopActorIdentity& identity, nlohmann::json& enemy) {
-    if (identity.childIndex == 0 || !enemy.contains("params")) {
+    // Parts of a boss our game left out
+    if (identity.childIndex == 0 || !enemy.contains("params") || IsOwnBossLeftOut()) {
         return nullptr;
     }
 
@@ -2731,7 +2745,7 @@ static Player* ChooseCoopEnemyTarget(Actor* actor, const std::vector<uint32_t>& 
     considerThreat(Anchor::Instance->ownClientId, GET_PLAYER(gPlayState));
     for (uint32_t clientId : peers) {
         AnchorClient& client = Anchor::Instance->clients[clientId];
-        if (client.player != nullptr && !(client.player->stateFlags1 & PLAYER_STATE1_DEAD)) {
+        if (client.player != nullptr && !(client.player->stateFlags1 & PLAYER_STATE1_DEAD) && !client.isBossLeftOut) {
             considerThreat(clientId, client.player);
         }
     }
@@ -2750,7 +2764,7 @@ static Player* ChooseCoopEnemyTarget(Actor* actor, const std::vector<uint32_t>& 
 
     for (uint32_t clientId : peers) {
         AnchorClient& client = Anchor::Instance->clients[clientId];
-        if (client.player == nullptr || (client.player->stateFlags1 & PLAYER_STATE1_DEAD)) {
+        if (client.player == nullptr || (client.player->stateFlags1 & PLAYER_STATE1_DEAD) || client.isBossLeftOut) {
             continue;
         }
 

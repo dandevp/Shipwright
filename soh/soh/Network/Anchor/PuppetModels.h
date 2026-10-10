@@ -3,7 +3,10 @@
 #include <stdint.h>
 
 #ifdef __cplusplus
+#include <functional>
+#include <map>
 #include <string>
+#include <vector>
 
 struct SkelAnime;
 
@@ -17,7 +20,7 @@ struct SkelAnime;
  * model, then to the vanilla model (the base game's Link files, moved the same way), never to our own mods.
  *
  * A model is everything under objects/object_link_boy*, objects/object_link_child* and objects/object_custom_equip
- * (SoH's custom equipment, see customequipment.cpp).
+ * (SoH's custom equipment, see customequipment.cpp), plus what `.meta` aliases there point at (see SelectModelFiles).
  */
 namespace PuppetModels {
 
@@ -27,7 +30,19 @@ inline const std::string VANILLA_MODEL_ID = "vanilla";
 // Whether a path belongs to Link's model (and so to a model mod)
 bool IsModelPath(const std::string& path);
 
-// Mounts and prepares a model archive under the given id. Returns false if it couldn't be read.
+// Which of an archive's files (by their paths in it) make up a model: Link's files, `.meta` aliases in their place,
+// and what those point at with everything in the same folder (its vertices, textures). By the path they're used at
+// (alternate assets without "alt/", in place of the regular ones unless left out) -> path in the archive.
+using FileReader = std::function<std::vector<char>(const std::string& path)>;
+std::map<std::string, std::string> SelectModelFiles(const std::vector<std::string>& paths, const FileReader& read,
+                                                    bool useAltAssets);
+
+// Prepares the models mounted by Load a little more, call once a frame. Until it's ready, a model isn't drawn with.
+void Update();
+bool IsReady(const std::string& modelId);
+
+// Mounts a model archive under the given id, to be prepared over the next frames (see Update). Returns false if it
+// couldn't be read.
 bool Load(const std::string& modelId, const std::string& archivePath);
 void Unload(const std::string& modelId);
 bool IsLoaded(const std::string& modelId);
@@ -46,7 +61,13 @@ void ApplySkeleton(SkelAnime* skelAnime, int32_t linkAge, int32_t tunic);
 // mounted mods give anyway, i.e. when some of them were left out of it.
 void SetOwnModel(const std::string& modelId, bool drawOwnLink);
 
+// Shows our model next to our Link for a moment, call every frame while it should stay (see PuppetModels_DrawPreview)
+void ShowPreview();
+
 } // namespace PuppetModels
+
+struct PlayState;
+struct Player;
 
 extern "C" {
 #endif
@@ -57,6 +78,8 @@ const char* PuppetModels_Resolve(const char* path);
 // PuppetModels_EndOwnDraw has to follow the drawing.
 int32_t PuppetModels_BeginOwnDraw(struct SkelAnime* skelAnime, int32_t linkAge, int32_t tunic);
 void PuppetModels_EndOwnDraw(void);
+// After our Link is drawn: while the model picker shows it, our model beside him, turning around, in his pose
+void PuppetModels_DrawPreview(struct PlayState* play, struct Player* player);
 // While a dummy player draws: whether its model has a file (like a custom equipment part), else -1
 int32_t PuppetModels_HasFile(const char* path);
 // While a dummy player draws: whether its model replaces Link's skeleton, else -1

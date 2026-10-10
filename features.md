@@ -12,6 +12,9 @@ enemies between teammates, so they can play through the same areas together.
 - Story progress (NPCs reacting to it) needs "Sync Items and Flags" on as well.
 - While an Archipelago slot is connected, "Sync Items and Flags" is greyed out (Archipelago moves the items),
   Co-op Sync stays available.
+- Saves of the official Archipelago client (1.4.x) are recognized as Archipelago saves, but like any randomizer save
+  of another SoH version (theirs is 9.2.3) they're moved aside as outdated: start a new file on the same slot, the
+  server sends its items and checked locations again.
 
 ## What is shared
 
@@ -167,12 +170,18 @@ enemies between teammates, so they can play through the same areas together.
   ...) while you keep yours, and with vanilla Link when they have none, never with your model.
 - A model is everything under `objects/object_link_boy*`, `objects/object_link_child*` and
   `objects/object_custom_equip` (custom equipment: swords and shields in their sheath, first person hands, ...), tunic
-  specific skeletons and display lists included. It's drawn by the teammate's own equipment, tunic and boots. Parts a
-  model doesn't replace are vanilla.
+  specific skeletons and display lists included. `.meta` alias files there count too, with what they point at and
+  everything in the same folder (its vertices and textures). It's drawn by the teammate's own equipment, tunic and
+  boots. Parts a model doesn't replace are vanilla.
 - Your model is the Link files of your enabled mods, as you have them equipped (it follows alternate assets being
   toggled). Under Network > Anchor > Your Link Model you can leave some of your mods out of it: that changes your own
   Link (in the game and on the pause screen) and what teammates see you as at the same time, without a restart and
-  without being connected. Your mods stay enabled for everything else they change.
+  without being connected. Your mods stay enabled for everything else they change. While it's open, your model stands
+  next to Link, turning around in his pose (Show It Next to Link).
+- Your mods are looked into and your model is bundled on a worker thread, and only mods that are new or changed are
+  looked into again. Models are prepared a few milliseconds each frame, so getting one doesn't stall the game; until
+  it's ready, a teammate is drawn as vanilla Link and your own Link stays as your mods make him. Models are mounted
+  while the audio thread, which loads resources too, waits.
 - Models are sent between teammates through the Anchor server: a teammate who doesn't have yours yet is asked whether
   to download it (or downloads it always / never, a setting under Your Link Model). It's sent a little every frame and
   checked against its id before it's used, then kept in the `anchor-models` folder, so each model is only sent once.
@@ -197,12 +206,13 @@ enemies between teammates, so they can play through the same areas together.
 - Between different seeds, a breakable you haven't loaded yet when a teammate breaks theirs stays whole for you, since
   there's no telling yet whether it holds one of your checks.
 - Between different seeds, Boss Souls follow each player's own seed: without its soul a boss doesn't appear in your
-  game at all, so you can't join that fight. How mirroring copes with a teammate who has no boss while others do is
-  untested.
+  game at all, so you take no part in its fight. You never run the room for the others, get no copy of their boss, and
+  their boss doesn't go after you or hit you. Finding the soul while in the room changes nothing until you enter it
+  again, like without co-op.
 - Matching mods only looks at gameplay mods as a whole: their load order isn't compared, and a mod that's both a texture
   pack and a gameplay mod counts as a gameplay mod. Old `.otr` mods aren't looked into.
-- Looking into the enabled mods when connecting reads the start of each of their files, which may take a moment with
-  big texture packs.
+- A `.meta` alias in a Link model brings the whole folder of what it points at into the model, which may be more than
+  it needs if that folder holds other things too.
 - Every other enemy type only shares its health and death, and runs its own AI for each player. Among them:
   - Peahat, Tailpasaran, Shabom
   - the Deku Scrubs of the Deku Tree puzzle
@@ -292,6 +302,10 @@ None of these have been tested in the game yet:
   with a single client), then sending a model between two clients
 - [ ] The model picker on your own Link: leaving mods out and back in, the pause screen, toggling alternate assets
 - [ ] Matching gameplay mods: Match and Close renaming the files at the next start, Restore Mods Disabled for Co-op
+- [ ] A boss room with one player missing the boss's soul: the others still fight it together, the one without it is
+  left alone
+- [ ] A Link model mod using `.meta` aliases, sent to a teammate; the model preview next to Link; no stall when a
+  model arrives or the picker changes
 - [ ] Archipelago: connecting to a slot, sending and receiving items, file select, and the slot options mapped onto
   the reworked randomizer settings (Ganon's Boss Key triggers, Triforce Hunt, Zelda's Letter, Kakariko gate)
 
@@ -307,14 +321,7 @@ None of these have been tested in the game yet:
 
 - [ ] Ocarina: the game replaying a recognized song and the song's jingle aren't heard by teammates, only notes
   played by hand
-- [ ] Boss Souls across seeds: without its soul a boss doesn't appear for you, how mirroring copes with that is
-  untested
 - [ ] A breakable that isn't loaded yet when a teammate on another seed breaks theirs stays whole for you
-- [ ] Saves of the official Archipelago client (1.4.x) don't load correctly, their file type is now Speedrun's
 - [ ] The Archipelago client comes from a May 2026 branch, older than the 1.4.2 release, newer client fixes may be
   missing
 - [ ] Matching mods doesn't compare their load order, and doesn't look into old `.otr` mods
-- [ ] Short hitches: looking into the mods when connecting, building our model at start
-- [ ] Models are mounted while the game runs, without locking against resources loading on other threads
-- [ ] Model mods using `.meta` alias files aren't supported for per-player models
-- [ ] The model picker has no live preview

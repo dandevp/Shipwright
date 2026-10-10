@@ -2356,6 +2356,49 @@ void EnDns_RandomizerPurchase(EnDns* enDns) {
     }
 }
 
+// The soul the bosses of the current scene need to spawn, RAND_INF_MAX when they don't need one
+RandomizerInf GetCurrentSceneBossSoul() {
+    if (RAND_GET_OPTION(RSK_SHUFFLE_BOSS_SOULS)) {
+        // Boss souls require an additional item (represented by a RAND_INF) to spawn a boss in a particular lair
+        switch (gPlayState->sceneNum) {
+            case SCENE_DEKU_TREE_BOSS:
+                return RAND_INF_GOHMA_SOUL;
+            case SCENE_DODONGOS_CAVERN_BOSS:
+                return RAND_INF_KING_DODONGO_SOUL;
+            case SCENE_JABU_JABU_BOSS:
+                return RAND_INF_BARINADE_SOUL;
+            case SCENE_FOREST_TEMPLE_BOSS:
+                return RAND_INF_PHANTOM_GANON_SOUL;
+            case SCENE_FIRE_TEMPLE_BOSS:
+                return RAND_INF_VOLVAGIA_SOUL;
+            case SCENE_WATER_TEMPLE_BOSS:
+                return RAND_INF_MORPHA_SOUL;
+            case SCENE_SHADOW_TEMPLE_BOSS:
+                return RAND_INF_BONGO_BONGO_SOUL;
+            case SCENE_SPIRIT_TEMPLE_BOSS:
+                return RAND_INF_TWINROVA_SOUL;
+            default:
+                break;
+        }
+    }
+
+    if (RAND_GET_OPTION(RSK_GANONS_SOUL).IsNot(RO_GANONS_SOUL_STARTWITH)) {
+        switch (gPlayState->sceneNum) {
+            case SCENE_GANONDORF_BOSS:
+            case SCENE_GANON_BOSS:
+                return RAND_INF_GANON_SOUL;
+        }
+    }
+
+    return RAND_INF_MAX;
+}
+
+// The bosses of the current scene are left out, their soul hasn't been found yet
+bool Randomizer_IsCurrentBossSoulMissing() {
+    RandomizerInf soul = GetCurrentSceneBossSoul();
+    return soul != RAND_INF_MAX && !Flags_GetRandomizerInf(soul);
+}
+
 void RandomizerOnActorInitHandler(void* actorRef) {
     Actor* actor = static_cast<Actor*>(actorRef);
 
@@ -2582,47 +2625,7 @@ void RandomizerOnActorInitHandler(void* actorRef) {
         Actor_Kill(actor);
     }
 
-    RandomizerInf currentBossSoulRandInf = RAND_INF_MAX;
-    if (RAND_GET_OPTION(RSK_SHUFFLE_BOSS_SOULS)) {
-        // Boss souls require an additional item (represented by a RAND_INF) to spawn a boss in a particular lair
-        switch (gPlayState->sceneNum) {
-            case SCENE_DEKU_TREE_BOSS:
-                currentBossSoulRandInf = RAND_INF_GOHMA_SOUL;
-                break;
-            case SCENE_DODONGOS_CAVERN_BOSS:
-                currentBossSoulRandInf = RAND_INF_KING_DODONGO_SOUL;
-                break;
-            case SCENE_JABU_JABU_BOSS:
-                currentBossSoulRandInf = RAND_INF_BARINADE_SOUL;
-                break;
-            case SCENE_FOREST_TEMPLE_BOSS:
-                currentBossSoulRandInf = RAND_INF_PHANTOM_GANON_SOUL;
-                break;
-            case SCENE_FIRE_TEMPLE_BOSS:
-                currentBossSoulRandInf = RAND_INF_VOLVAGIA_SOUL;
-                break;
-            case SCENE_WATER_TEMPLE_BOSS:
-                currentBossSoulRandInf = RAND_INF_MORPHA_SOUL;
-                break;
-            case SCENE_SHADOW_TEMPLE_BOSS:
-                currentBossSoulRandInf = RAND_INF_BONGO_BONGO_SOUL;
-                break;
-            case SCENE_SPIRIT_TEMPLE_BOSS:
-                currentBossSoulRandInf = RAND_INF_TWINROVA_SOUL;
-                break;
-            default:
-                break;
-        }
-    }
-
-    if (RAND_GET_OPTION(RSK_GANONS_SOUL).IsNot(RO_GANONS_SOUL_STARTWITH)) {
-        switch (gPlayState->sceneNum) {
-            case SCENE_GANONDORF_BOSS:
-            case SCENE_GANON_BOSS:
-                currentBossSoulRandInf = RAND_INF_GANON_SOUL;
-                break;
-        }
-    }
+    RandomizerInf currentBossSoulRandInf = GetCurrentSceneBossSoul();
 
     // Deletes all actors in the boss category if the soul isn't found.
     // Some actors, like Dark Link, Arwings, and Zora's Sapphire...?, are in this category despite not being actual

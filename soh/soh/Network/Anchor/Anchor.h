@@ -129,6 +129,9 @@ typedef struct {
     // Whether they run the enemies of their room for everyone in it (see CoopEnemyMirror.cpp)
     bool claimsCoopAuthority;
 
+    // Their game left out the boss of their scene, they haven't found its soul yet (see CoopEnemyMirror.cpp)
+    bool isBossLeftOut;
+
     // The mirrored platform they're standing on, if any (see CoopEnemyMirror.cpp)
     bool isStandingOnCoopObject;
     CoopActorIdentity standingOnCoopObject;
@@ -282,7 +285,6 @@ class Anchor : public Network {
     std::vector<CoopModInfo> ownGameplayMods; // See CoopMods.cpp
     std::string ownModsHash;
     std::set<std::string> coopModsAsked; // Room owners' mods we were asked to match, so we only ask once
-    void ScanCoopMods();
     nlohmann::json PrepCoopMods();
     void OnCoopClientMods(uint32_t clientId);
     void SendCoopModelChunks();
@@ -404,6 +406,7 @@ class Anchor : public Network {
     bool CanTeleportTo(uint32_t clientId);
     bool IsCoopSyncActive();
     bool IsCoopRoomAuthority();
+    bool IsOwnBossLeftOut();
     bool IsCoopMirroredEnemy(Actor* actor);
     bool IsCoopMirroredAttacker(Actor* actor);
     bool GetCoopStandingOn(CoopActorIdentity* identity);
@@ -449,6 +452,7 @@ class Anchor : public Network {
         return ownModelId;
     }
     void BuildOwnCoopModel();
+    static std::string ScanCoopMods(const std::vector<std::string>& archivePaths, std::vector<CoopModInfo>& mods);
     void UpdateOwnCoopModel();
     void HandlePacket_ModelRequest(nlohmann::json payload);
     void HandlePacket_ModelChunk(nlohmann::json payload);

@@ -196,7 +196,9 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
         if (attack != nullptr && (attack->atFlags & AT_TYPE_ENEMY)) {
             // Only enemies we run for everyone (and what they shoot) count. Other enemies are run by every player for
             // themselves, so their hits here aren't real.
-            if (Anchor::Instance->IsCoopMirroredAttacker(attacker) && player->cylinder.info.acHitInfo != nullptr) {
+            // A teammate whose game left the boss out doesn't fight it either (see CoopEnemyMirror.cpp).
+            if (Anchor::Instance->IsCoopMirroredAttacker(attacker) && !client.isBossLeftOut &&
+                player->cylinder.info.acHitInfo != nullptr) {
                 Anchor::Instance->SendPacket_CoopEnemyAttack(client.clientId, attacker,
                                                              player->cylinder.info.acHitInfo);
                 player->invincibilityTimer = 20;

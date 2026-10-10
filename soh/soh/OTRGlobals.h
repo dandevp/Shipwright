@@ -19,6 +19,7 @@
 #ifdef __cplusplus
 #include <stdint.h>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_map>
 
@@ -77,6 +78,10 @@ class OTRGlobals {
     bool hasOriginal;
     ImFont* CreateFontWithSize(float size, std::string fontPath, bool isJapaneseFont = false);
 };
+
+// Keeps the audio thread, which loads resources too, out while the mounted archives change. The archive manager has no
+// lock of its own.
+std::unique_lock<std::mutex> OTRAudio_LockForArchiveChanges();
 #endif
 
 #ifndef __cplusplus

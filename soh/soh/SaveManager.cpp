@@ -34,6 +34,17 @@ extern "C" {
 extern "C" SaveContext gSaveContext;
 using namespace std::string_literals;
 
+// The official Archipelago client (1.4.x) gives its saves type 4, which is Speedrun's here. They're told apart by their
+// randomizer section, which only randomizer saves have.
+static int ReadFileType(const nlohmann::json& saveBlock) {
+    int fileType = saveBlock.value("fileType", (int)FILE_TYPE_SAVE_VANILLA);
+    if (fileType == FILE_TYPE_SAVE_SPEEDRUN && saveBlock.contains("sections") &&
+        saveBlock["sections"].contains("randomizer")) {
+        return FILE_TYPE_SAVE_ARCHI;
+    }
+    return fileType;
+}
+
 #if defined(__WIIU__) || defined(__SWITCH__)
 // std::filesystem::copy_file doesn't work properly with the Wii U's toolchain atm
 int copy_file(const char* src, const char* dst) {
@@ -691,7 +702,7 @@ void SaveManager::StartupCheckAndInitMeta(int fileNum) {
             }
         }
     }
-    int fileType = metaSaveBlock.value("fileType", (int)FILE_TYPE_SAVE_VANILLA);
+    int fileType = ReadFileType(metaSaveBlock);
     bool isArchi = fileType == FILE_TYPE_SAVE_ARCHI;
     bool isRando = fileType == FILE_TYPE_SAVE_RANDO || isArchi;
 
@@ -1387,7 +1398,7 @@ void SaveManager::LoadFile(int fileNum) {
             SPDLOG_ERROR("Save at {} contains no version", fileName.string());
             assert(false);
         }
-        int fileType = saveBlock.value("fileType", (int)FILE_TYPE_SAVE_VANILLA);
+        int fileType = ReadFileType(saveBlock);
         if (fileType == FILE_TYPE_SAVE_RANDO) {
             gSaveContext.ship.quest.id = QUEST_RANDOMIZER;
         } else if (fileType == FILE_TYPE_SAVE_SPEEDRUN) {

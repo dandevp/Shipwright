@@ -76,6 +76,9 @@ void Anchor::SendPacket_PlayerUpdate() {
     if (coopClaimsAuthority) {
         payload["coopAuthority"] = true;
     }
+    if (IsOwnBossLeftOut()) {
+        payload["bossLeftOut"] = true;
+    }
     payload["quiet"] = true;
 
     for (auto& [clientId, client] : clients) {
@@ -131,5 +134,6 @@ void Anchor::HandlePacket_PlayerUpdate(nlohmann::json payload) {
         }
         ReadCoopCarriedObjects(client, payload);
         client.claimsCoopAuthority = payload.value("coopAuthority", false);
+        client.isBossLeftOut = payload.value("bossLeftOut", false);
     }
 }

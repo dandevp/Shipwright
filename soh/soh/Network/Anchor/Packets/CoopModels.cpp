@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <fstream>
+#include <future>
 #include <map>
 #include <nlohmann/json.hpp>
 #include <zip.h>
@@ -8,6 +9,8 @@
 #include <ship/window/Window.h>
 #include <ship/resource/ResourceManager.h>
 #include <ship/resource/archive/ArchiveManager.h>
+#include <ship/resource/archive/FolderArchive.h>
+#include <ship/resource/archive/O2rArchive.h>
 #include <ship/utils/StrHash64.h>
 
 #include "soh/Network/Anchor/Anchor.h"
@@ -22,7 +25,8 @@
  * MODEL_REQUEST, MODEL_CHUNK
  *
  * Our Link model is the Link files of our enabled mods (see PuppetModels.h), or of those we picked in the Anchor menu.
- * They're bundled into one archive, identified by a hash of its contents, which comes with our client state.
+ * They're bundled into one archive, identified by a hash of its contents, which comes with our client state. Bundling
+ * it (and looking into our gameplay mods, see CoopMods.cpp) runs on a worker thread, so the game doesn't stall.
  * Teammates who don't have that model yet ask us for it (MODEL_REQUEST) and we send it over in chunks (MODEL_CHUNK),
  * a little every frame so it doesn't hold up the game's own packets. Received models are kept, so each is only sent
  * once.
@@ -147,6 +151,52 @@ bool IsModArchive(const std::shared_ptr<Ship::Archive>& archive) {
     return !archive->HasGameVersion() && fileName != "soh.o2r" && !archive->GetPath().starts_with("anchor-model:");
 }
 
+std::vector<std::string> ListArchiveFiles(const std::shared_ptr<Ship::Archive>& archive) {
+    std::vector<std::string> paths;
+    for (auto& [hash, path] : *archive->ListFiles()) {
+        paths.push_back(path);
+    }
+    return paths;
+}
+
+std::vector<char> ReadArchiveFile(const std::shared_ptr<Ship::Archive>& archive, const std::string& path) {
+    auto file = archive->LoadFile(path);
+    return file != nullptr && file->Buffer != nullptr ? *file->Buffer : std::vector<char>();
+}
+
+// The Link files of a mod archive, by the path they're used at (see PuppetModels::SelectModelFiles). Its aliases are
+// pointed at those paths too, which drop "alt/".
+std::map<std::string, std::vector<char>> ReadModelFiles(const std::shared_ptr<Ship::Archive>& archive,
+                                                        bool useAltAssets) {
+    auto read = [&archive](const std::string& path) { return ReadArchiveFile(archive, path); };
+    std::map<std::string, std::vector<char>> files;
+    for (auto& [usedPath, path] : PuppetModels::SelectModelFiles(ListArchiveFiles(archive), read, useAltAssets)) {
+        std::vector<char> data = read(path);
+        if (data.empty()) {
+            continue;
+        }
+        if (usedPath.ends_with(".meta")) {
+            nlohmann::json meta =
+                nlohmann::json::parse(std::string(data.data(), strnlen(data.data(), data.size())), nullptr, false);
+            std::string target = meta.is_object() ? meta.value("path", "") : "";
+            if (target.starts_with("alt/")) {
+                meta["path"] = target.substr(4);
+                std::string text = meta.dump();
+                data.assign(text.begin(), text.end());
+                data.push_back('\0');
+            }
+        }
+        files[usedPath] = std::move(data);
+    }
+    return files;
+}
+
+// Archives a worker thread can read from: zips have a handle per thread, folders are plain files
+bool IsThreadSafeArchive(const std::shared_ptr<Ship::Archive>& archive) {
+    return std::dynamic_pointer_cast<Ship::O2rArchive>(archive) != nullptr ||
+           std::dynamic_pointer_cast<Ship::FolderArchive>(archive) != nullptr;
+}
+
 std::vector<std::string> GetExcludedModelMods() {
     std::vector<std::string> excluded;
     std::stringstream stream(CVarGetString(CVAR_REMOTE_ANCHOR("Model.ExcludedMods"), ""));
@@ -173,13 +223,17 @@ std::vector<Anchor::CoopModelSource> Anchor::GetCoopModelSources() {
             continue;
         }
 
-        size_t modelFiles = 0;
-        for (auto& [hash, path] : *archive->ListFiles()) {
-            std::string modelPath = path.starts_with("alt/") ? path.substr(4) : path;
-            if (PuppetModels::IsModelPath(modelPath) && !path.ends_with(".meta")) {
-                modelFiles++;
+        // Mods don't change while the game runs, and this is asked every frame while the picker is open
+        static std::map<std::string, size_t> sModelFileCounts;
+        if (!sModelFileCounts.contains(archive->GetPath())) {
+            auto read = [&archive](const std::string& path) { return ReadArchiveFile(archive, path); };
+            size_t count = 0;
+            for (auto& [usedPath, path] : PuppetModels::SelectModelFiles(ListArchiveFiles(archive), read, true)) {
+                count += !usedPath.ends_with(".meta");
             }
+            sModelFileCounts[archive->GetPath()] = count;
         }
+        size_t modelFiles = sModelFileCounts[archive->GetPath()];
         if (modelFiles == 0) {
             continue;
         }
@@ -209,78 +263,106 @@ void Anchor::SetCoopModelSourceIncluded(const std::string& name, bool included) 
     ownModelNeedsBuilding = true;
 }
 
-// Bundles the Link files of our (picked) mods into one archive. Later mods win, like when they're mounted, and
-// alternate assets only count while they're enabled.
-void Anchor::BuildOwnCoopModel() {
-    ownModelId = "";
-    ownModelData = nullptr;
+namespace {
 
+struct OwnModelSource {
+    std::shared_ptr<Ship::Archive> archive;
+    std::map<std::string, std::vector<char>> files; // Read beforehand, for archives the worker can't read from
+    bool isRead;
+};
+
+struct OwnModelBuild {
+    std::vector<CoopModInfo> gameplayMods;
+    std::string modsHash;
+    std::string modelId; // Empty when our mods don't change Link
+    std::string path;
+    std::shared_ptr<std::vector<uint8_t>> data;
+    bool leavesModsOut;
+    bool isTooBig = false;
+    bool hasFailed = false;
+};
+
+std::future<OwnModelBuild> sOwnModelBuild;
+
+// On the worker thread: looks into our gameplay mods, and bundles the Link files of our (picked) mods into one archive.
+// Later mods win, like when they're mounted, and alternate assets only count while they're enabled.
+OwnModelBuild BuildOwnModel(std::vector<std::string> modPaths, std::vector<OwnModelSource> sources, bool useAltAssets,
+                            bool leavesModsOut, std::string cacheDirectory) {
+    OwnModelBuild build;
+    build.leavesModsOut = leavesModsOut;
+    build.modsHash = Anchor::ScanCoopMods(modPaths, build.gameplayMods);
+
+    std::map<std::string, std::vector<char>> files;
+    for (auto& source : sources) {
+        auto sourceFiles = source.isRead ? std::move(source.files) : ReadModelFiles(source.archive, useAltAssets);
+        for (auto& [usedPath, data] : sourceFiles) {
+            // A later mod's file replaces an earlier one's alias in its place, and the other way around
+            if (usedPath.ends_with(".meta")) {
+                files.erase(usedPath.substr(0, usedPath.size() - std::string_view(".meta").size()));
+            } else {
+                files.erase(usedPath + ".meta");
+            }
+            files[usedPath] = std::move(data);
+        }
+    }
+    if (files.empty()) {
+        return build;
+    }
+
+    std::string modelId = HashModelFiles(files);
+    std::string path = cacheDirectory + "/" + modelId + ".o2r";
+    std::error_code error;
+    std::filesystem::create_directories(cacheDirectory, error);
+    if (!std::filesystem::exists(path) && !WriteModelArchive(path, files)) {
+        SPDLOG_ERROR("[Anchor] Couldn't write our model to {}", path);
+        build.hasFailed = true;
+        return build;
+    }
+
+    std::ifstream stream(path, std::ios::binary);
+    build.data = std::make_shared<std::vector<uint8_t>>(std::istreambuf_iterator<char>(stream),
+                                                        std::istreambuf_iterator<char>());
+    build.isTooBig = build.data->size() > MODEL_MAX_SIZE;
+    build.modelId = modelId;
+    build.path = path;
+    return build;
+}
+
+} // namespace
+
+// Starts bundling our model on a worker thread, see UpdateOwnCoopModel for when it's done
+void Anchor::BuildOwnCoopModel() {
     auto resourceManager = Ship::Context::GetRawInstance()->GetResourceManager();
     bool useAltAssets = resourceManager->IsAltAssetsEnabled();
     std::vector<std::string> excluded = GetExcludedModelMods();
 
-    std::map<std::string, std::vector<char>> files;
+    std::vector<std::string> modPaths;
+    std::vector<OwnModelSource> sources;
     for (auto& archive : *resourceManager->GetArchiveManager()->GetArchives()) {
-        std::string name = std::filesystem::path(archive->GetPath()).filename().string();
-        if (!IsModArchive(archive) || std::find(excluded.begin(), excluded.end(), name) != excluded.end()) {
+        if (!IsModArchive(archive)) {
             continue;
         }
-
-        // Regular files first, so an archive's alternate assets replace its own regular ones
-        for (bool alt : { false, true }) {
-            if (alt && !useAltAssets) {
-                continue;
-            }
-            for (auto& [hash, path] : *archive->ListFiles()) {
-                if (path.starts_with("alt/") != alt || path.ends_with(".meta")) {
-                    continue;
-                }
-                std::string modelPath = alt ? path.substr(4) : path;
-                if (!PuppetModels::IsModelPath(modelPath)) {
-                    continue;
-                }
-                auto file = archive->LoadFile(path);
-                if (file != nullptr && file->Buffer != nullptr) {
-                    files[modelPath] = *file->Buffer;
-                }
-            }
+        if (archive->GetPath().ends_with(".o2r")) {
+            modPaths.push_back(archive->GetPath());
         }
+        std::string name = std::filesystem::path(archive->GetPath()).filename().string();
+        if (std::find(excluded.begin(), excluded.end(), name) != excluded.end()) {
+            continue;
+        }
+        OwnModelSource source = { archive, {}, !IsThreadSafeArchive(archive) };
+        if (source.isRead) {
+            source.files = ReadModelFiles(archive, useAltAssets);
+        }
+        sources.push_back(std::move(source));
     }
 
     // Our own Link is drawn with it when some of our mods were left out, else our mods give the same anyway
-    auto sources = GetCoopModelSources();
-    bool leavesModsOut = std::any_of(sources.begin(), sources.end(), [](auto& source) { return !source.included; });
+    auto modelSources = GetCoopModelSources();
+    bool leavesModsOut =
+        std::any_of(modelSources.begin(), modelSources.end(), [](auto& source) { return !source.included; });
 
-    if (files.empty()) {
-        PuppetModels::SetOwnModel("", leavesModsOut);
-        SendPacket_UpdateClientState();
-        return;
-    }
-
-    std::string modelId = HashModelFiles(files);
-    std::string path = GetModelCachePath(modelId);
-    std::error_code error;
-    std::filesystem::create_directories(GetModelCacheDirectory(), error);
-    if (!std::filesystem::exists(path) && !WriteModelArchive(path, files)) {
-        SPDLOG_ERROR("[Anchor] Couldn't write our model to {}", path);
-        SendPacket_UpdateClientState();
-        return;
-    }
-
-    std::ifstream stream(path, std::ios::binary);
-    auto data = std::make_shared<std::vector<uint8_t>>(std::istreambuf_iterator<char>(stream),
-                                                       std::istreambuf_iterator<char>());
-    if (data->size() > MODEL_MAX_SIZE) {
-        Notification::Emit({ .message = "Your Link model is too big to be sent to teammates (over 64 MB)" });
-        SendPacket_UpdateClientState();
-        return;
-    }
-
-    ownModelId = modelId;
-    ownModelData = data;
-    PuppetModels::Load(modelId, path);
-    PuppetModels::SetOwnModel(modelId, leavesModsOut);
-    SendPacket_UpdateClientState();
+    sOwnModelBuild = std::async(std::launch::async, BuildOwnModel, std::move(modPaths), std::move(sources),
+                                useAltAssets, leavesModsOut, GetModelCacheDirectory());
 }
 
 // Called once a frame, connected or not, since the model picked in the Anchor menu is our own Link's too
@@ -292,15 +374,36 @@ void Anchor::UpdateOwnCoopModel() {
         sAltAssetsWhenBuilt = altAssets;
         ownModelNeedsBuilding = true;
     }
-    if (ownModelNeedsBuilding) {
+
+    if (sOwnModelBuild.valid() && sOwnModelBuild.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        OwnModelBuild build = sOwnModelBuild.get();
+        ownGameplayMods = build.gameplayMods;
+        ownModsHash = build.modsHash;
+        ownModelId = "";
+        ownModelData = nullptr;
+        if (build.isTooBig) {
+            Notification::Emit({ .message = "Your Link model is too big to be sent to teammates (over 64 MB)" });
+        } else if (build.modelId.empty()) {
+            PuppetModels::SetOwnModel("", build.leavesModsOut);
+        } else if (!build.hasFailed) {
+            ownModelId = build.modelId;
+            ownModelData = build.data;
+            PuppetModels::Load(build.modelId, build.path);
+            PuppetModels::SetOwnModel(build.modelId, build.leavesModsOut);
+        }
+        SendPacket_UpdateClientState();
+    }
+
+    // One at a time, a change during a build starts another once it's done
+    if (ownModelNeedsBuilding && !sOwnModelBuild.valid()) {
         ownModelNeedsBuilding = false;
-        ScanCoopMods();
         BuildOwnCoopModel();
     }
 }
 
 static void RegisterOwnCoopModel() {
     COND_HOOK(OnGameFrameUpdate, true, []() {
+        PuppetModels::Update();
         if (Anchor::Instance != nullptr) {
             Anchor::Instance->UpdateOwnCoopModel();
         }
@@ -447,11 +550,17 @@ void Anchor::HandlePacket_ModelChunk(nlohmann::json payload) {
     }
     coopModelDownloads.erase(it);
 
+    // Only a model's files (see PuppetModels::SelectModelFiles), at the paths they're used at
     std::map<std::string, std::vector<char>> files;
     bool isValid = ReadModelArchive(tempPath, files) && !files.empty() && HashModelFiles(files) == modelId;
+    std::vector<std::string> paths;
     for (auto& [filePath, data] : files) {
-        isValid = isValid && PuppetModels::IsModelPath(filePath);
+        paths.push_back(filePath);
     }
+    auto read = [&files](const std::string& path) { return files.contains(path) ? files[path] : std::vector<char>(); };
+    auto selected = PuppetModels::SelectModelFiles(paths, read, true);
+    isValid = isValid && selected.size() == files.size() &&
+              std::all_of(selected.begin(), selected.end(), [](auto& file) { return file.first == file.second; });
     if (!isValid) {
         SPDLOG_ERROR("[Anchor] Model {} doesn't match its id, dropped", modelId);
         std::filesystem::remove(tempPath, error);

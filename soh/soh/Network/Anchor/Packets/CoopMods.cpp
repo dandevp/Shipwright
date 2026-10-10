@@ -1,5 +1,6 @@
 #include <filesystem>
 #include <map>
+#include <mutex>
 #include <nlohmann/json.hpp>
 #include <zip.h>
 
@@ -49,9 +50,18 @@ struct ScannedMod {
     bool isGameplay;
 };
 
+// Scans by path, kept while the file stays the same (scans run on a worker thread, see CoopModels.cpp)
+struct CachedScan {
+    uintmax_t size;
+    std::filesystem::file_time_type modified;
+    ScannedMod result;
+};
+std::mutex sScanCacheMutex;
+std::map<std::string, CachedScan> sScanCache;
+
 // Looks into a mod archive: a hash of its contents, and whether it changes gameplay. Only the start of each file is
 // read, the rest comes from the zip's directory.
-bool ScanModArchive(const std::string& path, ScannedMod& result) {
+bool ScanModArchiveUncached(const std::string& path, ScannedMod& result) {
     int error = 0;
     zip_t* zip = zip_open(path.c_str(), ZIP_RDONLY, &error);
     if (zip == nullptr) {
@@ -59,22 +69,45 @@ bool ScanModArchive(const std::string& path, ScannedMod& result) {
     }
 
     std::map<std::string, std::pair<uint32_t, uint64_t>> entries;
-    result.isGameplay = false;
+    std::vector<std::string> names;
     zip_int64_t count = zip_get_num_entries(zip, 0);
     for (zip_int64_t i = 0; i < count; i++) {
+        zip_stat_t stat;
+        if (zip_stat_index(zip, i, 0, &stat) == 0 && !std::string_view(stat.name).ends_with("/")) {
+            entries[stat.name] = { stat.crc, stat.size };
+            names.push_back(stat.name);
+        }
+    }
+
+    // The Link model doesn't count, aliases included (only those are read whole, they're small)
+    auto read = [zip](const std::string& name) {
+        std::vector<char> data;
+        zip_stat_t stat;
+        if (zip_stat(zip, name.c_str(), 0, &stat) != 0 || stat.size > 64 * 1024) {
+            return data;
+        }
+        zip_file_t* file = zip_fopen(zip, name.c_str(), 0);
+        if (file != nullptr) {
+            data.resize(stat.size);
+            if (zip_fread(file, data.data(), stat.size) != (zip_int64_t)stat.size) {
+                data.clear();
+            }
+            zip_fclose(file);
+        }
+        return data;
+    };
+    auto modelFiles = PuppetModels::SelectModelFiles(names, read, true);
+
+    result.isGameplay = false;
+    for (zip_int64_t i = 0; i < count && !result.isGameplay; i++) {
         zip_stat_t stat;
         if (zip_stat_index(zip, i, 0, &stat) != 0 || std::string_view(stat.name).ends_with("/")) {
             continue;
         }
         std::string name = stat.name;
-        entries[name] = { stat.crc, stat.size };
-
-        if (result.isGameplay) {
-            continue;
-        }
         std::string modelPath = name.starts_with("alt/") ? name.substr(4) : name;
-        if (PuppetModels::IsModelPath(modelPath) || name == "manifest.json" || name == "version" ||
-            name.ends_with(".meta") || name.ends_with(".png") || name.ends_with(".jpg")) {
+        if (modelFiles.contains(modelPath) || name == "manifest.json" || name == "version" || name.ends_with(".meta") ||
+            name.ends_with(".png") || name.ends_with(".jpg")) {
             continue;
         }
 
@@ -99,6 +132,30 @@ bool ScanModArchive(const std::string& path, ScannedMod& result) {
         crc = update_crc64(&info, sizeof(info), crc);
     }
     result.hash = fmt::format("{:016x}", crc);
+    return true;
+}
+
+bool ScanModArchive(const std::string& path, ScannedMod& result) {
+    std::error_code error;
+    uintmax_t size = std::filesystem::file_size(path, error);
+    auto modified = std::filesystem::last_write_time(path, error);
+    if (error) {
+        return false;
+    }
+    {
+        std::lock_guard<std::mutex> lock(sScanCacheMutex);
+        auto cached = sScanCache.find(path);
+        if (cached != sScanCache.end() && cached->second.size == size && cached->second.modified == modified) {
+            result = cached->second.result;
+            return true;
+        }
+    }
+
+    if (!ScanModArchiveUncached(path, result)) {
+        return false;
+    }
+    std::lock_guard<std::mutex> lock(sScanCacheMutex);
+    sScanCache[path] = { size, modified, result };
     return true;
 }
 
@@ -130,33 +187,27 @@ void Anchor_ApplyPendingModChanges() {
     CVarClear(CVAR_REMOTE_ANCHOR("Mods.PendingRenames"));
 }
 
-void Anchor::ScanCoopMods() {
-    ownGameplayMods.clear();
-
-    auto archives = Ship::Context::GetRawInstance()->GetResourceManager()->GetArchiveManager()->GetArchives();
-    for (auto& archive : *archives) {
-        std::string path = archive->GetPath();
-        std::string fileName = std::filesystem::path(path).filename().string();
-        if (archive->HasGameVersion() || fileName == "soh.o2r" || path.starts_with("anchor-model:") ||
-            !path.ends_with(".o2r")) {
-            continue;
-        }
+// Our gameplay mods among the given mod archives, and a hash of them all. Runs on a worker thread (see
+// CoopModels.cpp), scans are kept so only new or changed mods are looked into again.
+std::string Anchor::ScanCoopMods(const std::vector<std::string>& archivePaths, std::vector<CoopModInfo>& mods) {
+    mods.clear();
+    for (const std::string& path : archivePaths) {
         ScannedMod scanned;
         if (ScanModArchive(path, scanned) && scanned.isGameplay) {
-            ownGameplayMods.push_back({ ModName(path), scanned.hash });
+            mods.push_back({ ModName(path), scanned.hash });
         }
     }
 
     uint64_t crc = INITIAL_CRC64;
     std::vector<std::string> hashes;
-    for (auto& mod : ownGameplayMods) {
+    for (auto& mod : mods) {
         hashes.push_back(mod.hash);
     }
     std::sort(hashes.begin(), hashes.end());
     for (auto& hash : hashes) {
         crc = update_crc64(hash.data(), (uint32_t)hash.size(), crc);
     }
-    ownModsHash = hashes.empty() ? "" : fmt::format("{:016x}", crc);
+    return hashes.empty() ? "" : fmt::format("{:016x}", crc);
 }
 
 nlohmann::json Anchor::PrepCoopMods() {
