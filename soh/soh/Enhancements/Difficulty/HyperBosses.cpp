@@ -1,6 +1,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 
 #include "soh/ShipInit.hpp"
+#include "soh/Network/Anchor/CoopSettings.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/Enhancements/boss-rush/BossRush.h"
 
@@ -14,7 +15,7 @@ extern "C" PlayState* gPlayState;
 
 #define CVAR_HYPER_BOSSES_DEFAULT 0
 #define CVAR_HYPER_BOSSES_NAME CVAR_ENHANCEMENT("HyperBosses")
-#define CVAR_HYPER_BOSSES_VALUE CVarGetInteger(CVAR_HYPER_BOSSES_NAME, CVAR_HYPER_BOSSES_DEFAULT)
+#define CVAR_HYPER_BOSSES_VALUE CoopSettings::GetInteger(CVAR_HYPER_BOSSES_NAME, CVAR_HYPER_BOSSES_DEFAULT)
 
 bool IsHyperBossesActive() {
     return CVAR_HYPER_BOSSES_VALUE ||
@@ -66,3 +67,4 @@ static void UpdateHyperBossesState() {
 }
 
 static RegisterShipInitFunc initFunc(UpdateHyperBossesState, { CVAR_HYPER_BOSSES_NAME });
+static CoopSettings::Shared coopShared({ CVAR_HYPER_BOSSES_NAME });

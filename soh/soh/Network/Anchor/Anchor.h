@@ -131,11 +131,13 @@ typedef struct {
 
 typedef struct {
     uint32_t ownerClientId;
-    u8 pvpMode;           // 0 = off, 1 = on, 2 = on with friendly fire
-    u8 showLocationsMode; // 0 = none, 1 = team, 2 = all
-    u8 teleportMode;      // 0 = off, 1 = team, 2 = all
-    u8 syncItemsAndFlags; // 0 = off, 1 = on
-    u8 coopSync;          // 0 = off, 1 = on (share live room state with teammates in the same scene)
+    u8 pvpMode;                  // 0 = off, 1 = on, 2 = on with friendly fire
+    u8 showLocationsMode;        // 0 = none, 1 = team, 2 = all
+    u8 teleportMode;             // 0 = off, 1 = team, 2 = all
+    u8 syncItemsAndFlags;        // 0 = off, 1 = on
+    u8 coopSync;                 // 0 = off, 1 = on (share live room state with teammates in the same scene)
+    nlohmann::json coopSettings; // The owner's values of the settings everyone shares in co-op (see CoopSettings.h)
+    uint32_t coopEnemySeed;      // Seed for anything random about enemies, the same for everyone
 } RoomState;
 
 // Flag kinds shared through COOP_SCENE_FLAG. These are live scene flags (play->actorCtx.flags), independent of the
@@ -192,6 +194,9 @@ class Anchor : public Network {
 
     nlohmann::json PrepClientState();
     nlohmann::json PrepRoomState();
+    nlohmann::json PrepCoopSettings();
+    uint32_t GetCoopEnemySeed();
+    nlohmann::json lastSentCoopSettings; // What we last sent as room owner, see UpdateCoopSettings
     void RegisterHooks();
     void RefreshClientActors();
     void SetDummyPlayerClientId(const Actor* actor, uint32_t clientId);
@@ -391,6 +396,7 @@ class Anchor : public Network {
     void SendPacket_UpdateClientState();
     void SendPacket_UpdateDungeonItems();
     void SendPacket_UpdateRoomState();
+    void UpdateCoopSettings();
     void SendPacket_UpdateTeamState();
 };
 

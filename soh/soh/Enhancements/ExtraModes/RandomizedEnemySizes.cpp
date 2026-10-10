@@ -4,6 +4,7 @@
 #include "soh/ObjectExtension/ActorMaximumHealth.h"
 #include "soh/ShipInit.hpp"
 #include "soh/ShipUtils.h"
+#include "soh/Network/Anchor/CoopSettings.h"
 
 extern "C" {
 #include "functions.h"
@@ -16,11 +17,12 @@ extern void EnFirefly_Fall(EnFirefly*, PlayState*);
 
 static constexpr int32_t CVAR_RANDO_ENEMY_SIZE_DEFAULT = 0;
 #define CVAR_RANDO_ENEMY_SIZE_NAME CVAR_ENHANCEMENT("RandomizedEnemySizes")
-#define CVAR_RANDO_ENEMY_SIZE_VALUE CVarGetInteger(CVAR_RANDO_ENEMY_SIZE_NAME, CVAR_RANDO_ENEMY_SIZE_DEFAULT)
+#define CVAR_RANDO_ENEMY_SIZE_VALUE CoopSettings::GetInteger(CVAR_RANDO_ENEMY_SIZE_NAME, CVAR_RANDO_ENEMY_SIZE_DEFAULT)
 
 static constexpr int32_t CVAR_ENEMY_SCALE_HEALTH_DEFAULT = 0;
 #define CVAR_ENEMY_SCALE_HEALTH_NAME CVAR_ENHANCEMENT("EnemySizeScalesHealth")
-#define CVAR_ENEMY_SCALE_HEALTH_VALUE CVarGetInteger(CVAR_ENEMY_SCALE_HEALTH_NAME, CVAR_ENEMY_SCALE_HEALTH_DEFAULT)
+#define CVAR_ENEMY_SCALE_HEALTH_VALUE \
+    CoopSettings::GetInteger(CVAR_ENEMY_SCALE_HEALTH_NAME, CVAR_ENEMY_SCALE_HEALTH_DEFAULT)
 
 // If scale > normal, start downscaling already during death fall
 void EnemyRandoSize_KeeseFallScale(void* ptr) {
@@ -50,13 +52,23 @@ static void RandomizedEnemySizes(void* refActor) {
     bool smallOnlyEnemy = actor->id == ACTOR_BOSS_DODONGO || actor->id == ACTOR_BOSS_FD ||
                           actor->id == ACTOR_BOSS_FD2 || actor->id == ACTOR_EN_DH;
 
-    bool bigActor = !smallOnlyEnemy && ShipUtils::Random(0, 2) == 0;
+    // In co-op, an enemy gets the same size (and so health) in everyone's game
+    uint64_t coopRandomState = 0;
+    uint64_t* randomState = nullptr;
+    if (CoopSettings::IsEnforced()) {
+        ShipUtils::RandInit(CoopSettings::GetEnemySeed() + actor->id + actor->params + (int32_t)actor->home.pos.x +
+                                (int32_t)actor->home.pos.y + (int32_t)actor->home.pos.z,
+                            &coopRandomState);
+        randomState = &coopRandomState;
+    }
+
+    bool bigActor = !smallOnlyEnemy && ShipUtils::Random(0, 2, randomState) == 0;
 
     float randomScale;
     if (bigActor) {
-        randomScale = static_cast<float>(1.0f + ShipUtils::RandomDouble() * 2.0f);
+        randomScale = static_cast<float>(1.0f + ShipUtils::RandomDouble(randomState) * 2.0f);
     } else {
-        randomScale = static_cast<float>(0.1f + ShipUtils::RandomDouble() * 0.9f);
+        randomScale = static_cast<float>(0.1f + ShipUtils::RandomDouble(randomState) * 0.9f);
     }
 
     Actor_SetScale(actor, actor->scale.z * randomScale);
@@ -143,3 +155,4 @@ static void RegisterFreezardHealthScale() {
 static RegisterShipInitFunc initFunc_EnemySizes(RegisterRandomizedEnemySizes, { CVAR_RANDO_ENEMY_SIZE_NAME });
 static RegisterShipInitFunc initFunc_Freezard(RegisterFreezardHealthScale,
                                               { CVAR_RANDO_ENEMY_SIZE_NAME, CVAR_ENEMY_SCALE_HEALTH_NAME });
+static CoopSettings::Shared coopShared({ CVAR_RANDO_ENEMY_SIZE_NAME, CVAR_ENEMY_SCALE_HEALTH_NAME });

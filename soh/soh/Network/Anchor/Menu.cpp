@@ -1,6 +1,7 @@
 #include <ship/Context.h>
 
 #include "Anchor.h"
+#include "CoopSettings.h"
 #include "soh/SohGui/SohGui.hpp"
 #include "soh/SohGui/SohMenu.h"
 #include "soh/util.h"
@@ -158,6 +159,12 @@ void AnchorMainMenu(WidgetInfo& info) {
                          : "Cannot show other players because the room's Show Locations mode is set to None."));
     ImGui::EndDisabled();
 
+    if (CoopSettings::IsEnforced() && anchor->roomState.ownerClientId != anchor->ownClientId) {
+        ImGui::TextWrapped("%s Co-op Sync: Enemy Randomizer, Enemy Sizes and Hyper Enemies/Bosses follow the room "
+                           "owner's settings while you're in this room.",
+                           ICON_FA_INFO_CIRCLE);
+    }
+
     ImGui::Spacing();
 
     if (!SohGui::mAnchorRoomWindow->IsVisible()) {
@@ -230,6 +237,18 @@ void AnchorAdminMenu(WidgetInfo& info) {
                 .Tooltip("Teammates in the same area share its live state: switches, timed switches, room clears "
                          "and temporary collectibles."))) {
         anchor->SendPacket_UpdateRoomState();
+    }
+    if (CVarGetInteger(CVAR_REMOTE_ANCHOR("RoomSettings.CoopSync"), 0)) {
+        ImGui::TextWrapped("Your Enemy Randomizer, Enemy Sizes and Hyper Enemies/Bosses settings apply to everyone in "
+                           "the room. Enemies are always seeded, with the room's seed.");
+        UIWidgets::PushStyleButton(THEME_COLOR);
+        if (ImGui::Button("New Enemy Seed")) {
+            CVarClear(CVAR_REMOTE_ANCHOR("RoomSettings.CoopEnemySeed"));
+            anchor->SendPacket_UpdateRoomState();
+        }
+        UIWidgets::PopStyleButton();
+        UIWidgets::Tooltip("Rolls other enemies for the enemy randomizer and sizes. Rooms that are already loaded keep "
+                           "theirs.");
     }
 }
 

@@ -26,6 +26,8 @@ void Anchor::Enable() {
             if (Anchor::Instance->hooksNeedRegistering.exchange(false)) {
                 Anchor::Instance->RegisterHooks();
             }
+            // Also when disconnected, so our own settings come back into effect
+            Anchor::Instance->UpdateCoopSettings();
         });
     }
 

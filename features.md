@@ -122,6 +122,18 @@ enemies between teammates, so they can play through the same areas together.
 - When a teammate in your scene makes story progress, the NPCs in your room are respawned, so they react to it right
   away rather than when you come back (like Mido moving out of the way).
 
+### Room owner's enemy settings
+
+- While Co-op Sync is on, the room owner's Enemy Randomizer (mode and enemy list, including Air-Walk Voidouts),
+  Randomized Enemy Sizes (and Size Scales Health) and Hyper Enemies / Hyper Bosses settings apply to everyone in the
+  room, both ways: a setting the owner has off is off for everyone. Your own saved settings aren't changed and come back
+  when you leave the room.
+- Enemies are always seeded in co-op, with a seed the room keeps (the owner can roll a new one in the room settings).
+  Randomized enemies and their sizes come out the same for everyone, so they're mirrored and share health like any
+  other enemy.
+- Changes apply to rooms as they load: enemies already spawned keep their type and size. Hyper Enemies and Hyper Bosses
+  switch right away.
+
 ## Known limitations
 
 ### General
@@ -133,6 +145,8 @@ enemies between teammates, so they can play through the same areas together.
 
 ### Enemies
 
+- The room owner's enemy settings need the Anchor server to pass the whole room state on to the other players
+  (`coopSettings` and `coopEnemySeed` next to `coopSync`).
 - Every other enemy type only shares its health and death, and runs its own AI for each player. Among them:
   - Peahat, Tailpasaran, Shabom
   - the Deku Scrubs of the Deku Tree puzzle

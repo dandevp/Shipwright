@@ -5,6 +5,7 @@
 #include "macros.h"
 #include "soh/ShipUtils.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
+#include "soh/Network/Anchor/CoopSettings.h"
 #include "soh/Enhancements/enhancementTypes.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
@@ -39,7 +40,7 @@ extern std::shared_ptr<SohMenu> mSohMenu;
 
 #define CVAR_ENEMY_RANDOMIZER_NAME CVAR_ENHANCEMENT("RandomizedEnemies")
 #define CVAR_ENEMY_RANDOMIZER_DEFAULT ENEMY_RANDOMIZER_OFF
-#define CVAR_ENEMY_RANDOMIZER_VALUE CVarGetInteger(CVAR_ENEMY_RANDOMIZER_NAME, CVAR_ENEMY_RANDOMIZER_DEFAULT)
+#define CVAR_ENEMY_RANDOMIZER_VALUE CoopSettings::GetInteger(CVAR_ENEMY_RANDOMIZER_NAME, CVAR_ENEMY_RANDOMIZER_DEFAULT)
 #define ENEMY_RANDOMIZER_ENABLED CVAR_ENEMY_RANDOMIZER_VALUE != CVAR_ENEMY_RANDOMIZER_DEFAULT
 
 typedef struct EnemyEntry {
@@ -374,9 +375,9 @@ static void UpdateSelectedEnemies() {
     selectedEnemyList.clear();
 
     for (int i = 0; i < ARRAY_COUNT(randomizedEnemySpawnTable); i++) {
-        if (CVarGetInteger(CVAR_ENHANCEMENT("RandomizedEnemyList.All"), 0)) {
+        if (CoopSettings::GetInteger(CVAR_ENHANCEMENT("RandomizedEnemyList.All"), 0)) {
             selectedEnemyList.push_back(randomizedEnemySpawnTable[i]);
-        } else if (CVarGetInteger(randomizedEnemySpawnTable[i].cvar, 1)) {
+        } else if (CoopSettings::GetInteger(randomizedEnemySpawnTable[i].cvar, 1)) {
             selectedEnemyList.push_back(randomizedEnemySpawnTable[i]);
         }
     }
@@ -401,6 +402,13 @@ static EnemyEntry GetRandomizedEnemyEntry(u32 seed, PlayState* play, s16 posY, b
 
     if (filteredEnemyList.size() == 0) {
         filteredEnemyList = selectedEnemyList;
+    }
+
+    // In co-op, enemies are always seeded with the room's seed, so everyone gets the same ones
+    if (CoopSettings::IsEnforced()) {
+        uint64_t randomState = 0;
+        ShipUtils::RandInit(seed + CoopSettings::GetEnemySeed(), &randomState);
+        return ShipUtils::RandomElement(filteredEnemyList, false, &randomState);
     }
 
     if (CVAR_ENEMY_RANDOMIZER_VALUE == ENEMY_RANDOMIZER_RANDOM_SEEDED) {
@@ -1043,7 +1051,7 @@ void RegisterEnemyRandomizer() {
 
             // Let ground enemies air walk above voidout floor in clear/timed rooms
             // and move them up if setting is enabled after they're fallen down
-            if (CVarGetInteger(CVAR_ENHANCEMENT("EnemyRandomizerAirWalkVoidouts"), false) &&
+            if (CoopSettings::GetInteger(CVAR_ENHANCEMENT("EnemyRandomizerAirWalkVoidouts"), false) &&
                 (SurfaceType_GetFloorType(&gPlayState->colCtx, enemy->floorPoly, enemy->floorBgId) == 9 ||
                  floorProperty == FLOOR_PROPERTY_5 || floorProperty == FLOOR_PROPERTY_12)) {
                 if (enemy->world.pos.y < player->actor.floorHeight) {
@@ -1257,6 +1265,16 @@ static void RegisterItem00WithoutObject() {
 }
 
 static RegisterShipInitFunc initFunc(RegisterEnemyRandomizer, { CVAR_ENEMY_RANDOMIZER_NAME });
+static CoopSettings::Shared coopShared(
+    []() {
+        std::vector<std::string> cvars = { CVAR_ENEMY_RANDOMIZER_NAME, CVAR_ENHANCEMENT("RandomizedEnemyList.All"),
+                                           CVAR_ENHANCEMENT("EnemyRandomizerAirWalkVoidouts") };
+        for (const EnemyEntry& enemy : randomizedEnemySpawnTable) {
+            cvars.push_back(enemy.cvar);
+        }
+        return cvars;
+    }(),
+    UpdateSelectedEnemies);
 static RegisterShipInitFunc initFuncItem00(RegisterItem00WithoutObject,
                                            { CVAR_ENEMY_RANDOMIZER_NAME, CVAR_REMOTE_CROWD_CONTROL("Enabled") });
 static RegisterMenuInitFunc menuInitFunc(RegisterEnemyRandomizerWidgets);
