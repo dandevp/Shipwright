@@ -42,6 +42,10 @@ class DrawScope {
 // Puts the model's skeleton for the given age and tunic on a dummy player's SkelAnime. Call inside its DrawScope.
 void ApplySkeleton(SkelAnime* skelAnime, int32_t linkAge, int32_t tunic);
 
+// Our own model, picked in the Anchor menu (empty for vanilla). Our own Link is drawn with it when it isn't what our
+// mounted mods give anyway, i.e. when some of them were left out of it.
+void SetOwnModel(const std::string& modelId, bool drawOwnLink);
+
 } // namespace PuppetModels
 
 extern "C" {
@@ -49,6 +53,10 @@ extern "C" {
 
 // While a dummy player draws: the path of its model's copy of a Link file, else NULL
 const char* PuppetModels_Resolve(const char* path);
+// Draws our own Link with our picked model, if it differs from what our mods give. Returns whether it does, then
+// PuppetModels_EndOwnDraw has to follow the drawing.
+int32_t PuppetModels_BeginOwnDraw(struct SkelAnime* skelAnime, int32_t linkAge, int32_t tunic);
+void PuppetModels_EndOwnDraw(void);
 // While a dummy player draws: whether its model has a file (like a custom equipment part), else -1
 int32_t PuppetModels_HasFile(const char* path);
 // While a dummy player draws: whether its model replaces Link's skeleton, else -1

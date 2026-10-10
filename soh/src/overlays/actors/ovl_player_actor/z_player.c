@@ -6,6 +6,7 @@
 
 #include <libultraship/libultra.h>
 #include "global.h"
+#include "soh/Network/Anchor/PuppetModels.h"
 
 #include "overlays/actors/ovl_Bg_Heavy_Block/z_bg_heavy_block.h"
 #include "overlays/actors/ovl_Door_Shutter/z_door_shutter.h"
@@ -12456,6 +12457,10 @@ void Player_Draw(Actor* thisx, PlayState* play2) {
     rot.y = 32300;
     rot.x = rot.z = 0;
 
+    // SOH [Co-op] Our own Link is drawn with the model picked in the Anchor menu
+    s32 isOwnModelDraw = (thisx == &GET_PLAYER(play)->actor) &&
+                         PuppetModels_BeginOwnDraw(&this->skelAnime, gSaveContext.linkAge, this->currentTunic);
+
     OPEN_DISPS(play->state.gfxCtx);
 
     if (!(this->stateFlags2 & PLAYER_STATE2_DISABLE_DRAW)) {
@@ -12548,6 +12553,10 @@ void Player_Draw(Actor* thisx, PlayState* play2) {
     }
 
     CLOSE_DISPS(play->state.gfxCtx);
+
+    if (isOwnModelDraw) {
+        PuppetModels_EndOwnDraw();
+    }
 }
 
 void Player_Destroy(Actor* thisx, PlayState* play) {

@@ -2215,8 +2215,13 @@ void Player_DrawPauseImpl(PlayState* play, void* gameplayKeep, void* linkObject,
 
     gSPSegment(POLY_OPA_DISP++, 0x0C, gCullBackDList);
 
+    // SOH [Co-op] Drawn with the model picked in the Anchor menu, like our Link in the game
+    s32 isOwnModelDraw = PuppetModels_BeginOwnDraw(skelAnime, gSaveContext.linkAge, tunic);
     Player_DrawImpl(play, skelAnime->skeleton, skelAnime->jointTable, skelAnime->dListCount, 0, tunic, boots, 0,
                     Player_OverrideLimbDrawPause, NULL, &playerSwordAndShield);
+    if (isOwnModelDraw) {
+        PuppetModels_EndOwnDraw();
+    }
 
     if (CVarGetInteger(CVAR_GENERAL("PauseMenuAnimatedLinkTriforce"), 0)) {
         Matrix_SetTranslateRotateYXZ(pos->x - (LINK_AGE_IN_YEARS == YEARS_ADULT ? 25 : 0),

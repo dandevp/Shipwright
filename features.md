@@ -170,8 +170,9 @@ enemies between teammates, so they can play through the same areas together.
   specific skeletons and display lists included. It's drawn by the teammate's own equipment, tunic and boots. Parts a
   model doesn't replace are vanilla.
 - Your model is the Link files of your enabled mods, as you have them equipped (it follows alternate assets being
-  toggled). Under Network > Anchor > Your Link Model you can leave some of your mods out of what teammates see (your own
-  Link still follows the mod menu).
+  toggled). Under Network > Anchor > Your Link Model you can leave some of your mods out of it: that changes your own
+  Link (in the game and on the pause screen) and what teammates see you as at the same time, without a restart and
+  without being connected. Your mods stay enabled for everything else they change.
 - Models are sent between teammates through the Anchor server: a teammate who doesn't have yours yet is asked whether
   to download it (or downloads it always / never, a setting under Your Link Model). It's sent a little every frame and
   checked against its id before it's used, then kept in the `anchor-models` folder, so each model is only sent once.

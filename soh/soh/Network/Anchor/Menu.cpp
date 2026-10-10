@@ -17,6 +17,43 @@ static const char* pvpModes[3] = { "Off", "On", "On + Friendly Fire" };
 static std::vector<const char*> teleportModes = { "None", "Team Only", "All" };
 static std::vector<const char*> showLocationsModes = { "None", "Team Only", "All" };
 
+// Which of our mods make up our Link model, ours and what teammates see us with (see CoopModels.cpp). It works
+// without being connected too.
+static void DrawCoopModelPicker(Anchor* anchor) {
+    if (ImGui::CollapsingHeader("Your Link Model")) {
+        auto sources = anchor->GetCoopModelSources();
+        if (sources.empty()) {
+            ImGui::TextWrapped("None of your enabled mods change Link, you're vanilla Link.");
+        } else {
+            ImGui::TextWrapped("Your Link, as you and your teammates see it, is the Link model of these mods:");
+            for (auto& source : sources) {
+                bool included = source.included;
+                if (UIWidgets::Checkbox(fmt::format("{} ({} files)", source.name, source.modelFiles).c_str(), &included,
+                                        UIWidgets::CheckboxOptions().Color(THEME_COLOR))) {
+                    anchor->SetCoopModelSourceIncluded(source.name, included);
+                }
+            }
+        }
+        ImGui::Text("Model: %s", anchor->GetOwnModelId().empty() ? "vanilla" : anchor->GetOwnModelId().c_str());
+
+        UIWidgets::PushStyleButton(THEME_COLOR);
+        if (ImGui::Button("Restore Mods Disabled for Co-op")) {
+            size_t count = anchor->RestoreCoopDisabledMods();
+            SohGui::RegisterPopup("Restore Mods", count == 0
+                                                      ? "No mods were disabled for co-op."
+                                                      : fmt::format("{} mods come back at the next start.", count));
+        }
+        UIWidgets::PopStyleButton();
+
+        static const char* downloadModes[] = { "Ask", "Always", "Never" };
+        UIWidgets::CVarCombobox("Download Teammates' Models:", CVAR_REMOTE_ANCHOR("Model.Download"), downloadModes,
+                                UIWidgets::ComboboxOptions()
+                                    .DefaultIndex(0)
+                                    .LabelPosition(UIWidgets::LabelPositions::Above)
+                                    .Color(THEME_COLOR));
+    }
+}
+
 void AnchorMainMenu(WidgetInfo& info) {
     auto anchor = Anchor::Instance;
 
@@ -121,6 +158,8 @@ void AnchorMainMenu(WidgetInfo& info) {
     ImGui::EndDisabled();
     ImGui::Spacing();
 
+    DrawCoopModelPicker(anchor);
+
     if (!anchor->isEnabled) {
         return;
     }
@@ -166,40 +205,6 @@ void AnchorMainMenu(WidgetInfo& info) {
     }
 
     ImGui::Spacing();
-
-    // Which of our mods make up the Link model teammates see us with (see CoopModels.cpp)
-    if (ImGui::CollapsingHeader("Your Link Model")) {
-        auto sources = anchor->GetCoopModelSources();
-        if (sources.empty()) {
-            ImGui::TextWrapped("None of your enabled mods change Link, teammates see you as vanilla Link.");
-        } else {
-            ImGui::TextWrapped("Teammates see you with the Link model of these mods:");
-            for (auto& source : sources) {
-                bool included = source.included;
-                if (UIWidgets::Checkbox(fmt::format("{} ({} files)", source.name, source.modelFiles).c_str(), &included,
-                                        UIWidgets::CheckboxOptions().Color(THEME_COLOR))) {
-                    anchor->SetCoopModelSourceIncluded(source.name, included);
-                }
-            }
-        }
-        ImGui::Text("Model: %s", anchor->GetOwnModelId().empty() ? "vanilla" : anchor->GetOwnModelId().c_str());
-
-        UIWidgets::PushStyleButton(THEME_COLOR);
-        if (ImGui::Button("Restore Mods Disabled for Co-op")) {
-            size_t count = anchor->RestoreCoopDisabledMods();
-            SohGui::RegisterPopup("Restore Mods", count == 0
-                                                      ? "No mods were disabled for co-op."
-                                                      : fmt::format("{} mods come back at the next start.", count));
-        }
-        UIWidgets::PopStyleButton();
-
-        static const char* downloadModes[] = { "Ask", "Always", "Never" };
-        UIWidgets::CVarCombobox("Download Teammates' Models:", CVAR_REMOTE_ANCHOR("Model.Download"), downloadModes,
-                                UIWidgets::ComboboxOptions()
-                                    .DefaultIndex(0)
-                                    .LabelPosition(UIWidgets::LabelPositions::Above)
-                                    .Color(THEME_COLOR));
-    }
 
     ImGui::Spacing();
 

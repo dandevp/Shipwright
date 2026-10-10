@@ -15,6 +15,7 @@
 #include <fast/resource/type/DisplayList.h>
 
 #include "soh/resource/type/Skeleton.h"
+#include "soh/OTRGlobals.h"
 #include "soh/resource/type/SkeletonLimb.h"
 
 extern "C" {
@@ -137,6 +138,9 @@ struct Scope {
     int32_t tunic;
 };
 Scope* sScope = nullptr;
+
+std::string sOwnModelId;
+bool sDrawOwnLink = false;
 
 // Interned results of PuppetModels_Resolve, so the returned pointers stay valid
 std::unordered_set<std::string> sResolvedPaths;
@@ -383,20 +387,37 @@ bool IsLoaded(const std::string& modelId) {
     return sModels.contains(modelId);
 }
 
-DrawScope::DrawScope(const std::string& modelId, int32_t tunic) {
+bool BeginScope(const std::string& modelId, int32_t tunic) {
     static Scope scope;
-    if (!EnsureVanillaModel()) {
-        return;
+    if (sScope != nullptr || !EnsureVanillaModel()) {
+        return false;
     }
     auto model = sModels.find(modelId);
     scope.model = model != sModels.end() && modelId != VANILLA_MODEL_ID ? &model->second : nullptr;
     scope.vanilla = &sModels[VANILLA_MODEL_ID];
     scope.tunic = tunic;
     sScope = &scope;
+    return true;
+}
+
+DrawScope::DrawScope(const std::string& modelId, int32_t tunic) {
+    BeginScope(modelId, tunic);
 }
 
 DrawScope::~DrawScope() {
     sScope = nullptr;
+}
+
+void SetOwnModel(const std::string& modelId, bool drawOwnLink) {
+    bool wasDrawingOwnLink = sDrawOwnLink;
+    sOwnModelId = modelId;
+    sDrawOwnLink = drawOwnLink;
+
+    // Back to the skeletons our mods give, which SkeletonPatcher keeps on our own Link
+    if (wasDrawingOwnLink && !drawOwnLink) {
+        SOH::SkeletonPatcher::UpdateSkeletons();
+        SOH::SkeletonPatcher::UpdateCustomSkeletons();
+    }
 }
 
 void ApplySkeleton(SkelAnime* skelAnime, int32_t linkAge, int32_t tunic) {
@@ -481,6 +502,18 @@ extern "C" const char* PuppetModels_Resolve(const char* path) {
     }
 
     return sResolvedPaths.insert(std::string(OTR_SIGNATURE) + target).first->c_str();
+}
+
+extern "C" int32_t PuppetModels_BeginOwnDraw(SkelAnime* skelAnime, int32_t linkAge, int32_t tunic) {
+    if (!sDrawOwnLink || !BeginScope(IsLoaded(sOwnModelId) ? sOwnModelId : "", tunic)) {
+        return false;
+    }
+    ApplySkeleton(skelAnime, linkAge, tunic);
+    return true;
+}
+
+extern "C" void PuppetModels_EndOwnDraw(void) {
+    sScope = nullptr;
 }
 
 extern "C" int32_t PuppetModels_HasFile(const char* path) {

@@ -2,8 +2,6 @@
 #include "soh/Enhancements/cosmetics/cosmeticsTypes.h"
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/frame_interpolation.h"
-#include <ship/Context.h>
-#include <ship/resource/ResourceManager.h>
 
 extern "C" {
 #include "variables.h"
@@ -120,18 +118,6 @@ void Anchor::RegisterHooks() {
         FlushCoopPendingProjectiles();
         SendCoopEnemySnapshots();
         SendCoopModelChunks();
-        // Our model is what we have equipped, which changes with alternate assets (the TAB key)
-        static bool sAltAssetsWhenBuilt = false;
-        bool altAssets = Ship::Context::GetRawInstance()->GetResourceManager()->IsAltAssetsEnabled();
-        if (altAssets != sAltAssetsWhenBuilt) {
-            sAltAssetsWhenBuilt = altAssets;
-            ownModelNeedsBuilding = true;
-        }
-        if (ownModelNeedsBuilding) {
-            ownModelNeedsBuilding = false;
-            ScanCoopMods();
-            BuildOwnCoopModel();
-        }
     });
 
     COND_HOOK(OnPlayDrawEnd, isConnected, [&]() {

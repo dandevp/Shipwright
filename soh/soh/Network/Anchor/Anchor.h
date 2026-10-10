@@ -449,6 +449,7 @@ class Anchor : public Network {
         return ownModelId;
     }
     void BuildOwnCoopModel();
+    void UpdateOwnCoopModel();
     void HandlePacket_ModelRequest(nlohmann::json payload);
     void HandlePacket_ModelChunk(nlohmann::json payload);
     void UpdateCoopSettings();

@@ -15,6 +15,8 @@
 #include "soh/Notification/Notification.h"
 #include "soh/OTRGlobals.h"
 #include "soh/SohGui/SohModals.h"
+#include "soh/ShipInit.hpp"
+#include "soh/Enhancements/game-interactor/GameInteractor.h"
 
 /**
  * MODEL_REQUEST, MODEL_CHUNK
@@ -245,7 +247,12 @@ void Anchor::BuildOwnCoopModel() {
         }
     }
 
+    // Our own Link is drawn with it when some of our mods were left out, else our mods give the same anyway
+    auto sources = GetCoopModelSources();
+    bool leavesModsOut = std::any_of(sources.begin(), sources.end(), [](auto& source) { return !source.included; });
+
     if (files.empty()) {
+        PuppetModels::SetOwnModel("", leavesModsOut);
         SendPacket_UpdateClientState();
         return;
     }
@@ -271,8 +278,36 @@ void Anchor::BuildOwnCoopModel() {
 
     ownModelId = modelId;
     ownModelData = data;
+    PuppetModels::Load(modelId, path);
+    PuppetModels::SetOwnModel(modelId, leavesModsOut);
     SendPacket_UpdateClientState();
 }
+
+// Called once a frame, connected or not, since the model picked in the Anchor menu is our own Link's too
+void Anchor::UpdateOwnCoopModel() {
+    // Our model is what we have equipped, which changes with alternate assets (the TAB key)
+    static bool sAltAssetsWhenBuilt = false;
+    bool altAssets = Ship::Context::GetRawInstance()->GetResourceManager()->IsAltAssetsEnabled();
+    if (altAssets != sAltAssetsWhenBuilt) {
+        sAltAssetsWhenBuilt = altAssets;
+        ownModelNeedsBuilding = true;
+    }
+    if (ownModelNeedsBuilding) {
+        ownModelNeedsBuilding = false;
+        ScanCoopMods();
+        BuildOwnCoopModel();
+    }
+}
+
+static void RegisterOwnCoopModel() {
+    COND_HOOK(OnGameFrameUpdate, true, []() {
+        if (Anchor::Instance != nullptr) {
+            Anchor::Instance->UpdateOwnCoopModel();
+        }
+    });
+}
+
+static RegisterShipInitFunc initFunc(RegisterOwnCoopModel);
 
 // MARK: - Teammates' models
 
