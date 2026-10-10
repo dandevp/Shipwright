@@ -2,6 +2,7 @@
 
 #include "Anchor.h"
 #include "soh/Enhancements/nametag.h"
+#include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "soh/OTRGlobals.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
@@ -16,6 +17,18 @@ extern PlayState* gPlayState;
 // MARK: - Overrides
 
 void Anchor::Enable() {
+    // Connecting and disconnecting happen on the network thread, but the game hooks are run (and so may only be
+    // registered) on the game thread. They're registered at the start of the next frame instead.
+    static bool sRegistersHooksOnGameThread = false;
+    if (!sRegistersHooksOnGameThread) {
+        sRegistersHooksOnGameThread = true;
+        GameInteractor::Instance->RegisterGameHook<GameInteractor::OnGameFrameUpdate>([]() {
+            if (Anchor::Instance->hooksNeedRegistering.exchange(false)) {
+                Anchor::Instance->RegisterHooks();
+            }
+        });
+    }
+
     Network::Enable(CVarGetString(CVAR_REMOTE_ANCHOR("Host"), "anchor.hm64.org"),
                     CVarGetInteger(CVAR_REMOTE_ANCHOR("Port"), 43383));
     ownClientId = CVarGetInteger(CVAR_REMOTE_ANCHOR("LastClientId"), 0);
@@ -31,7 +44,7 @@ void Anchor::Disable() {
 
 void Anchor::OnConnected() {
     SendPacket_Handshake();
-    RegisterHooks();
+    hooksNeedRegistering = true;
 
     if (IsSaveLoaded()) {
         SendPacket_RequestTeamState();
@@ -39,7 +52,7 @@ void Anchor::OnConnected() {
 }
 
 void Anchor::OnDisconnected() {
-    RegisterHooks();
+    hooksNeedRegistering = true;
 }
 
 void Anchor::ProcessOutgoingPackets() {

@@ -6,6 +6,7 @@
 #include <libultraship/bridge/consolevariablebridge.h>
 #include <ship/window/gui/GuiWindow.h>
 #include <spdlog/spdlog.h>
+#include <atomic>
 #include <queue>
 #include <mutex>
 #include <vector>
@@ -290,6 +291,7 @@ class Anchor : public Network {
 
   public:
     uint32_t ownClientId;
+    std::atomic<bool> hooksNeedRegistering = false; // See Enable
     inline static const std::string clientVersion = (char*)gGitCommitHash;
 
     // Packet types //
