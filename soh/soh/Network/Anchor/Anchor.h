@@ -82,6 +82,7 @@ typedef struct {
     bool online;
     bool self;
     uint32_t seed;
+    std::string modelId; // Their Link model, drawn on their dummy player (see PuppetModels.h), empty for vanilla
     bool isSaveLoaded;
     bool isGameComplete;
     s16 sceneNum;

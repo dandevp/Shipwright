@@ -148,6 +148,15 @@ enemies between teammates, so they can play through the same areas together.
 - The room window marks teammates on a different seed. It only warns when "Sync Items and Flags" is on, which needs
   the same seed.
 
+### Player models
+
+- Teammates' dummy players are drawn with their own Link model and equipment (a custom model, a sword replacement,
+  ...) while you keep yours, and with vanilla Link when they have none, never with your model.
+- A model is everything under `objects/object_link_boy*` and `objects/object_link_child*`, tunic specific skeletons and
+  display lists included. Parts a model doesn't replace are vanilla.
+- Until models are sent between players, one can be tried out on all dummy players with the
+  `gRemote.Anchor.Developer.PuppetModelTestPath` CVar (the path of a model `.o2r`).
+
 ## Known limitations
 
 ### General

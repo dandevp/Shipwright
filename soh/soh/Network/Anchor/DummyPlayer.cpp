@@ -1,5 +1,6 @@
 #include "Anchor.h"
 #include "soh/Enhancements/nametag.h"
+#include "PuppetModels.h"
 
 extern "C" {
 #include "macros.h"
@@ -270,7 +271,24 @@ void DummyPlayer_Draw(Actor* actor, PlayState* play) {
     u8 originalButtonItem0 = gSaveContext.equips.buttonItems[0];
     gSaveContext.equips.buttonItems[0] = client.buttonItem0;
 
-    Player_Draw((Actor*)player, play);
+    {
+        // Teammates are drawn with their own model and equipment, not ours (see PuppetModels.h). A model can be tried
+        // out locally on everyone with the PuppetModelTestPath developer CVar.
+        std::string modelId = client.modelId;
+        static std::string sFailedTestPath;
+        const char* testPath = CVarGetString(CVAR_REMOTE_ANCHOR("Developer.PuppetModelTestPath"), "");
+        if (testPath[0] != '\0' && sFailedTestPath != testPath) {
+            if (PuppetModels::Load("test", testPath)) {
+                modelId = "test";
+            } else {
+                sFailedTestPath = testPath;
+            }
+        }
+
+        PuppetModels::DrawScope modelScope(modelId, client.currentTunic);
+        PuppetModels::ApplySkeleton(&player->skelAnime, client.linkAge, client.currentTunic);
+        Player_Draw((Actor*)player, play);
+    }
     gSaveContext.linkAge = originalAge;
     gSaveContext.equips.buttonItems[0] = originalButtonItem0;
 }

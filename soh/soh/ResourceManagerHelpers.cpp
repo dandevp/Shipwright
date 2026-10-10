@@ -18,6 +18,7 @@
 #include "resource/type/Array.h"
 #include "resource/type/Skeleton.h"
 #include "resource/type/PlayerAnimation.h"
+#include "Network/Anchor/PuppetModels.h"
 
 extern "C" {
 #include "variables.h"
@@ -342,6 +343,10 @@ extern "C" char* ResourceMgr_LoadJPEG(char* data, size_t dataSize) {
 }
 
 extern "C" char* ResourceMgr_LoadTexOrDListByName(const char* filePath) {
+    // A teammate's dummy player is drawn with their own model
+    if (const char* puppetPath = PuppetModels_Resolve(filePath)) {
+        filePath = puppetPath;
+    }
     auto res = ResourceMgr_GetResourceByNameHandlingMQ(filePath);
 
     if (res->GetInitData()->Type == static_cast<uint32_t>(Fast::ResourceType::DisplayList)) {
@@ -376,6 +381,12 @@ extern "C" void ResourceMgr_PushCurrentDirectory(char* path) {
 }
 
 extern "C" Gfx* ResourceMgr_LoadGfxByName(const char* path) {
+    // A teammate's dummy player is drawn with their own model (tunic specific files included)
+    if (const char* puppetPath = PuppetModels_Resolve(path)) {
+        auto res = std::static_pointer_cast<Fast::DisplayList>(ResourceMgr_GetResourceByNameHandlingMQ(puppetPath));
+        return res ? (Gfx*)&res->Instructions[0] : nullptr;
+    }
+
     path = ResourceMgr_ResolveLinkTunicDListPath(path);
     // When an alt resource exists for the DL, we need to unload the original asset
     // to clear the cache so the alt asset will be loaded instead
@@ -560,6 +571,9 @@ extern "C" CollisionHeader* ResourceMgr_LoadColByName(const char* path) {
 }
 
 extern "C" Vtx* ResourceMgr_LoadVtxByName(char* path) {
+    if (const char* puppetPath = PuppetModels_Resolve(path)) {
+        return (Vtx*)ResourceGetDataByName(puppetPath);
+    }
     return (Vtx*)ResourceGetDataByName(path);
 }
 

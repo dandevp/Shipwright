@@ -10,6 +10,7 @@
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/Enhancements/randomizer/draw.h"
 #include "soh/ResourceManagerHelpers.h"
+#include "soh/Network/Anchor/PuppetModels.h"
 
 #include <stdlib.h>
 #include <libultraship/bridge/consolevariablebridge.h>
@@ -498,6 +499,12 @@ void Player_SetBootData(PlayState* play, Player* this) {
 
 // SoH: Custom method used to determine if we're using a custom model for link
 uint8_t Player_IsCustomLinkModel() {
+    // SOH [Co-op] A teammate's dummy player is drawn with their own model
+    int32_t puppetIsCustom = PuppetModels_IsCustomSkeleton(LINK_IS_ADULT ? gLinkAdultSkel : gLinkChildSkel);
+    if (puppetIsCustom >= 0) {
+        return puppetIsCustom;
+    }
+
     return (LINK_IS_ADULT && ResourceGetIsCustomByName(gLinkAdultSkel)) ||
            (LINK_IS_CHILD && ResourceGetIsCustomByName(gLinkChildSkel));
 }
