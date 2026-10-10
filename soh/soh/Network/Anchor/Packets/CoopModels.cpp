@@ -338,7 +338,9 @@ void Anchor::BuildOwnCoopModel() {
 
     std::vector<std::string> modPaths;
     std::vector<OwnModelSource> sources;
-    for (auto& archive : *resourceManager->GetArchiveManager()->GetArchives()) {
+    // Kept in a variable: a temporary in the range-for would be gone before the loop runs
+    auto archives = resourceManager->GetArchiveManager()->GetArchives();
+    for (auto& archive : *archives) {
         if (!IsModArchive(archive)) {
             continue;
         }

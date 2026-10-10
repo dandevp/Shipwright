@@ -216,7 +216,9 @@ std::shared_ptr<Ship::ResourceManager> GetResourceManager() {
 
 // The base game archive the vanilla model comes from
 std::shared_ptr<Ship::Archive> FindBaseArchive() {
-    for (auto& archive : *GetResourceManager()->GetArchiveManager()->GetArchives()) {
+    // Kept in a variable: a temporary in the range-for would be gone before the loop runs
+    auto archives = GetResourceManager()->GetArchiveManager()->GetArchives();
+    for (auto& archive : *archives) {
         if (archive->HasGameVersion()) {
             return archive;
         }
