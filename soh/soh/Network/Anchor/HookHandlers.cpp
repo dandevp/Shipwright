@@ -62,6 +62,8 @@ void Anchor::RegisterHooks() {
 
         if (IsSaveLoaded()) {
             RefreshClientActors();
+            lastCoopRoomNum = gPlayState->roomCtx.curRoom.num;
+            OnCoopRoomChanged();
         }
     });
 
@@ -95,10 +97,27 @@ void Anchor::RegisterHooks() {
             RefreshClientActors();
         }
 
+        // Room scoped flags were just reset by the room transition, catch up with anyone already in the new room
+        if (gPlayState->roomCtx.curRoom.num != lastCoopRoomNum) {
+            lastCoopRoomNum = gPlayState->roomCtx.curRoom.num;
+            OnCoopRoomChanged();
+        }
+
+        UpdateCoopRoomAuthority();
         SendPacket_PlayerUpdate();
     });
 
-    COND_HOOK(OnGameFrameUpdate, isConnected, [&]() { ProcessIncomingPacketQueue(); });
+    COND_HOOK(OnGameFrameUpdate, isConnected, [&]() {
+        // Normally cleared after each actor update already, but an update can be skipped by another hook
+        coopUpdatingActor = nullptr;
+        ProcessIncomingPacketQueue();
+        ApplyCoopPendingHits();
+        RefreshCoopNpcs();
+        UpdateCoopCarriedCopies();
+        FlushCoopPendingDrops();
+        FlushCoopPendingProjectiles();
+        SendCoopEnemySnapshots();
+    });
 
     COND_HOOK(OnPlayerSfx, isConnected, [&](u16 sfxId) { SendPacket_PlayerSfx(sfxId); });
     COND_HOOK(OnOcarinaNote, isConnected,
@@ -199,6 +218,138 @@ void Anchor::RegisterHooks() {
         color->g = client.color.g;
         color->b = client.color.b;
     });
+
+    // #endregion
+
+    // #region Co-op sync of live scene state with teammates in the same scene
+
+    COND_HOOK(OnSceneFlagSet, isConnected, [&](s16 sceneNum, s16 flagType, s16 flag) {
+        switch (flagType) {
+            case FLAG_SCENE_SWITCH:
+                SendPacket_CoopSceneFlag(COOP_FLAG_SWITCH, flag, true);
+                break;
+            case FLAG_SCENE_CLEAR:
+                SendPacket_CoopSceneFlag(COOP_FLAG_CLEAR, flag, true);
+                break;
+            case FLAG_SCENE_COLLECTIBLE:
+                if (flag >= 0x20) {
+                    SendPacket_CoopSceneFlag(COOP_FLAG_COLLECTIBLE, flag, true);
+                }
+                break;
+        }
+    });
+
+    COND_HOOK(OnSceneFlagUnset, isConnected, [&](s16 sceneNum, s16 flagType, s16 flag) {
+        switch (flagType) {
+            case FLAG_SCENE_SWITCH:
+                SendPacket_CoopSceneFlag(COOP_FLAG_SWITCH, flag, false);
+                break;
+            case FLAG_SCENE_CLEAR:
+                SendPacket_CoopSceneFlag(COOP_FLAG_CLEAR, flag, false);
+                break;
+        }
+    });
+
+    COND_HOOK(OnFlagSet, isConnected, [&](s16 flagType, s16 flag) {
+        if (flagType == FLAG_EVENT_CHECK_INF && flag >= EVENTCHKINF_BEGAN_GOHMA_BATTLE &&
+            flag <= EVENTCHKINF_BEGAN_GANONDORF_BATTLE && !roomState.syncItemsAndFlags) {
+            SendPacket_CoopSceneFlag(COOP_FLAG_BOSS_BATTLE, flag, true);
+        }
+    });
+
+    COND_HOOK(OnTempClearFlagSet, isConnected,
+              [&](s16 sceneNum, s16 flag) { SendPacket_CoopSceneFlag(COOP_FLAG_TEMP_CLEAR, flag, true); });
+
+    COND_HOOK(OnTempClearFlagUnset, isConnected,
+              [&](s16 sceneNum, s16 flag) { SendPacket_CoopSceneFlag(COOP_FLAG_TEMP_CLEAR, flag, false); });
+
+    // Grass, pots, crates and enemies
+
+    COND_HOOK(OnSceneInit, isConnected, [&](s16 sceneNum) {
+        coopDestroyedActors.clear();
+        coopCarriedActors.clear();
+        coopCarriedCopies.clear();
+        coopPendingHits.clear();
+        ResetCoopBossThreat();
+        coopNpcRefreshPending = false;
+    });
+
+    COND_HOOK(ShouldActorInit, isConnected, [&](void* refActor, bool* should) {
+        if (!ShouldCoopActorInit((Actor*)refActor)) {
+            *should = false;
+        }
+    });
+
+    // The drop hooks fire exactly when these actors break, whether by a hit or by being thrown
+    COND_VB_SHOULD(VB_GRASS_DROP_ITEM, isConnected, { Anchor::Instance->OnCoopActorBroken(va_arg(args, Actor*)); });
+    COND_VB_SHOULD(VB_POT_DROP_ITEM, isConnected, { Anchor::Instance->OnCoopActorBroken(va_arg(args, Actor*)); });
+    COND_VB_SHOULD(VB_SMALL_CRATE_DROP_ITEM, isConnected,
+                   { Anchor::Instance->OnCoopActorBroken(va_arg(args, Actor*)); });
+    COND_VB_SHOULD(VB_CRATE_DROP_ITEM, isConnected, { Anchor::Instance->OnCoopActorBroken(va_arg(args, Actor*)); });
+
+    // Track which actor is updating, to tell which actor spawned a drop, and share enemy health after each update.
+    // Mirrored enemies run by a teammate don't run their own update, they follow the teammate's instead, and the ones
+    // we run may go after a teammate, in which case we run their update ourselves. Objects a teammate carries follow
+    // their copy instead of updating too.
+    COND_HOOK(ShouldActorUpdate, isConnected, [&](void* refActor, bool* should) {
+        if (UpdateCoopCarriedByTeammate((Actor*)refActor)) {
+            *should = false;
+            return;
+        }
+        OnCoopActorUpdating((Actor*)refActor);
+        ApplyCoopTeammatesStandingOn((Actor*)refActor);
+        if (UpdateCoopShot((Actor*)refActor)) {
+            *should = false;
+        } else if (UpdateCoopPuppet((Actor*)refActor)) {
+            *should = false;
+        } else if (*should && UpdateCoopEnemyWithTarget((Actor*)refActor)) {
+            *should = false;
+        }
+    });
+
+    COND_HOOK(OnActorUpdate, isConnected, [&](void* refActor) {
+        CorrectCoopDrivenPuppet((Actor*)refActor);
+        UpdateCoopBossAim((Actor*)refActor);
+        SendCoopShotState((Actor*)refActor);
+        OnCoopActorUpdated((Actor*)refActor);
+        DisarmCoopProjectileCopy((Actor*)refActor);
+        CorrectCoopMirroredObject((Actor*)refActor);
+    });
+
+    // Projectiles shot by mirrored enemies we run are shared
+    COND_HOOK(OnActorSpawn, isConnected, [&](void* refActor) { OnCoopActorSpawned((Actor*)refActor); });
+
+    COND_HOOK(OnActorKill, isConnected, [&](void* refActor) {
+        OnCoopActorKilled((Actor*)refActor);
+        SendCoopShotState((Actor*)refActor, true);
+    });
+
+    COND_ID_HOOK(OnActorSpawn, ACTOR_EN_ITEM00, isConnected,
+                 [&](void* refActor) { OnCoopItemSpawned((Actor*)refActor); });
+
+    COND_VB_SHOULD(VB_GIVE_ITEM_FROM_ITEM_00, isConnected,
+                   { Anchor::Instance->OnCoopItemCollected(va_arg(args, Actor*)); });
+
+    // Torches, push blocks and mirror statues
+
+    COND_ID_HOOK(OnActorUpdate, ACTOR_OBJ_SYOKUDAI, isConnected,
+                 [&](void* refActor) { OnCoopTorchUpdated((Actor*)refActor); });
+    COND_ID_HOOK(OnActorInit, ACTOR_OBJ_OSHIHIKI, isConnected,
+                 [&](void* refActor) { OnCoopBlockInit((Actor*)refActor); });
+    COND_ID_HOOK(OnActorUpdate, ACTOR_OBJ_OSHIHIKI, isConnected,
+                 [&](void* refActor) { OnCoopBlockUpdated((Actor*)refActor); });
+    COND_ID_HOOK(OnActorInit, ACTOR_EN_FLOORMAS, isConnected,
+                 [&](void* refActor) { OnCoopFloormasterInit((Actor*)refActor); });
+    COND_ID_HOOK(OnActorInit, ACTOR_BG_JYA_COBRA, isConnected,
+                 [&](void* refActor) { OnCoopStatueInit((Actor*)refActor); });
+    COND_ID_HOOK(OnActorUpdate, ACTOR_BG_JYA_COBRA, isConnected,
+                 [&](void* refActor) { OnCoopStatueUpdated((Actor*)refActor); });
+
+    // Only one player can move them at a time
+    COND_ID_HOOK(ShouldActorUpdate, ACTOR_OBJ_OSHIHIKI, isConnected,
+                 [&](void* refActor, bool* should) { OnCoopPushableUpdating((Actor*)refActor); });
+    COND_ID_HOOK(ShouldActorUpdate, ACTOR_BG_JYA_COBRA, isConnected,
+                 [&](void* refActor, bool* should) { OnCoopPushableUpdating((Actor*)refActor); });
 
     // #endregion
 

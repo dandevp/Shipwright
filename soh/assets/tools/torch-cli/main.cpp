@@ -8,6 +8,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -18,6 +20,29 @@ namespace fs = std::filesystem;
 static void Usage(const char* argv0) {
     fprintf(stderr, "usage: %s --src <asset yml dir> --dest <output dir> --version <M.m.p> <rom|dir> [rom|dir...]\n",
             argv0);
+}
+
+// SohTorch::Extract takes the ROM in big-endian (.z64) byte order, so .v64 (16-bit swapped) and .n64 (32-bit
+// little-endian) dumps are converted on load, like the game's extractor does.
+static std::vector<uint8_t> ReadRomBigEndian(const std::string& path) {
+    std::ifstream file(path, std::ios::binary);
+    std::vector<uint8_t> rom((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    if (rom.size() < 4) {
+        return rom;
+    }
+
+    if (rom[0] == 0x37 && rom[1] == 0x80) {
+        for (size_t i = 0; i + 1 < rom.size(); i += 2) {
+            std::swap(rom[i], rom[i + 1]);
+        }
+    } else if (rom[0] == 0x40 && rom[1] == 0x12) {
+        for (size_t i = 0; i + 3 < rom.size(); i += 4) {
+            std::swap(rom[i], rom[i + 3]);
+            std::swap(rom[i + 1], rom[i + 2]);
+        }
+    }
+
+    return rom;
 }
 
 static bool IsRom(const fs::path& path) {
@@ -98,7 +123,7 @@ int main(int argc, char** argv) {
 
     for (const auto& rom : roms) {
         // A fresh extraction per ROM; torch names the archive from config.yml.
-        const std::string archive = SohTorch::Extract(rom, src, dest, version, nullptr);
+        const std::string archive = SohTorch::Extract(ReadRomBigEndian(rom), src, dest, version, nullptr);
         if (archive.empty()) {
             fprintf(stderr, "failed to extract %s\n", rom.c_str());
             return 1;

@@ -25,7 +25,7 @@
 #define LEFT 0
 #define RIGHT 1
 #define OTHER_HAND(hand) ((BossSst*)hand->actor.child)
-#define HAND_STATE(hand) sHandState[hand->actor.params]
+#define HAND_STATE(hand) gBossSstHandState[hand->actor.params]
 
 #define ROOM_CENTER_X -50.0f
 #define ROOM_CENTER_Y 0.0f
@@ -240,7 +240,8 @@ static u32 sUnkValues[] = { 0, 0, 0, 0, 0, 0 };
 
 static Color_RGBA8 sBodyColor = { 255, 255, 255, 255 };
 static Color_RGBA8 sStaticColor = { 0, 0, 0, 255 };
-static s32 sHandState[] = { HAND_WAIT, HAND_WAIT };
+// SoH: not static, Anchor co-op sync mirrors it
+s32 gBossSstHandState[] = { HAND_WAIT, HAND_WAIT };
 
 #define BOSS_SST_SHIP_SAVESTATE_FIELDS(F) \
     F(sHead)                              \

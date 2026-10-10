@@ -38,6 +38,7 @@ void Anchor::SendPacket_PlayerUpdate() {
 
     payload["type"] = PLAYER_UPDATE;
     payload["sceneNum"] = gPlayState->sceneNum;
+    payload["roomNum"] = gPlayState->roomCtx.curRoom.num;
     payload["entranceIndex"] = gSaveContext.entranceIndex;
     payload["linkAge"] = gSaveContext.linkAge;
     payload["posRot"]["pos"] = player->actor.world.pos;
@@ -66,6 +67,14 @@ void Anchor::SendPacket_PlayerUpdate() {
     payload["unk_862"] = player->unk_862;
     payload["unk_85C"] = player->unk_85C;
     payload["actionVar1"] = player->av1.actionVar1;
+    CoopActorIdentity standingOn;
+    if (GetCoopStandingOn(&standingOn)) {
+        payload["standingOn"] = standingOn;
+    }
+    AddCoopCarriedObject(payload);
+    if (coopClaimsAuthority) {
+        payload["coopAuthority"] = true;
+    }
     payload["quiet"] = true;
 
     for (auto& [clientId, client] : clients) {
@@ -86,7 +95,9 @@ void Anchor::HandlePacket_PlayerUpdate(nlohmann::json payload) {
             shouldRefreshActors = true;
         }
 
+        client.lastPlayerUpdate = std::chrono::steady_clock::now();
         client.sceneNum = payload.value("sceneNum", (s16)SCENE_ID_MAX);
+        client.curRoomNum = payload.value("roomNum", client.curRoomNum);
         client.entranceIndex = payload.value("entranceIndex", (s32)0);
         client.linkAge = payload.value("linkAge", (s32)LINK_AGE_ADULT);
         client.posRot = payload.value("posRot", PosRot{ 0 });
@@ -113,5 +124,11 @@ void Anchor::HandlePacket_PlayerUpdate(nlohmann::json payload) {
         client.unk_862 = payload.value("unk_862", (s16)0);
         client.unk_85C = payload.value("unk_85C", (f32)0);
         client.actionVar1 = payload.value("actionVar1", (s8)0);
+        client.isStandingOnCoopObject = payload.contains("standingOn");
+        if (client.isStandingOnCoopObject) {
+            client.standingOnCoopObject = payload["standingOn"].get<CoopActorIdentity>();
+        }
+        ReadCoopCarriedObjects(client, payload);
+        client.claimsCoopAuthority = payload.value("coopAuthority", false);
     }
 }

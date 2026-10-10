@@ -22,6 +22,8 @@ void GameInteractor_ExecuteOnSceneInit(int16_t sceneNum);
 void GameInteractor_ExecuteAfterSceneCommands(int16_t sceneNum);
 void GameInteractor_ExecuteOnSceneFlagSet(int16_t sceneNum, int16_t flagType, int16_t flag);
 void GameInteractor_ExecuteOnSceneFlagUnset(int16_t sceneNum, int16_t flagType, int16_t flag);
+void GameInteractor_ExecuteOnTempClearFlagSet(int16_t sceneNum, int16_t flag);
+void GameInteractor_ExecuteOnTempClearFlagUnset(int16_t sceneNum, int16_t flag);
 void GameInteractor_ExecuteOnFlagSet(int16_t flagType, int16_t flag);
 void GameInteractor_ExecuteOnFlagUnset(int16_t flagType, int16_t flag);
 void GameInteractor_ExecuteOnSceneSpawnActors();

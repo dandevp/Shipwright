@@ -15,6 +15,7 @@
 #include "soh/ShipInit.hpp"
 #include "soh/cvar_prefixes.h"
 #include "soh/ObjectExtension/ActorListIndex.h"
+#include "soh/Network/Anchor/Anchor.h"
 
 extern "C" {
 #include <z64.h>
@@ -965,6 +966,10 @@ void ActorViewerWindow::DrawElement() {
                         ImGui::Text("ID: %d (0x%x)", display->id, display->id);
                         ImGui::Text("Parameters: %d (0x%x)", display->params, display->params);
                         ImGui::Text("Actor List Index: %d", GetActorListIndex(display));
+                        std::string coopInfo = Anchor::Instance->GetCoopActorDebugInfo(display);
+                        if (!coopInfo.empty()) {
+                            ImGui::TextUnformatted(coopInfo.c_str());
+                        }
                     },
                     "Selected Actor");
                 ImGui::SameLine();

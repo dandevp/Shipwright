@@ -76,6 +76,16 @@ void GameInteractor_ExecuteOnSceneFlagUnset(int16_t sceneNum, int16_t flagType, 
     GameInteractor::Instance->ExecuteHooksForFilter<GameInteractor::OnSceneFlagUnset>(sceneNum, flagType, flag);
 }
 
+void GameInteractor_ExecuteOnTempClearFlagSet(int16_t sceneNum, int16_t flag) {
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::OnTempClearFlagSet>(sceneNum, flag);
+    GameInteractor::Instance->ExecuteHooksForFilter<GameInteractor::OnTempClearFlagSet>(sceneNum, flag);
+}
+
+void GameInteractor_ExecuteOnTempClearFlagUnset(int16_t sceneNum, int16_t flag) {
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::OnTempClearFlagUnset>(sceneNum, flag);
+    GameInteractor::Instance->ExecuteHooksForFilter<GameInteractor::OnTempClearFlagUnset>(sceneNum, flag);
+}
+
 void GameInteractor_ExecuteOnFlagSet(int16_t flagType, int16_t flag) {
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnFlagSet>(flagType, flag);
     GameInteractor::Instance->ExecuteHooksForFilter<GameInteractor::OnFlagSet>(flagType, flag);

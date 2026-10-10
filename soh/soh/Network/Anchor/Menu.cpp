@@ -213,6 +213,15 @@ void AnchorAdminMenu(WidgetInfo& info) {
                                 UIWidgets::CheckboxOptions().DefaultValue(true).Color(THEME_COLOR))) {
         anchor->SendPacket_UpdateRoomState();
     }
+    if (UIWidgets::CVarCheckbox(
+            "Co-op Sync (Experimental)", CVAR_REMOTE_ANCHOR("RoomSettings.CoopSync"),
+            UIWidgets::CheckboxOptions()
+                .DefaultValue(false)
+                .Color(THEME_COLOR)
+                .Tooltip("Teammates in the same area share its live state: switches, timed switches, room clears "
+                         "and temporary collectibles."))) {
+        anchor->SendPacket_UpdateRoomState();
+    }
 }
 
 void AnchorInstructionsMenu(WidgetInfo& info) {

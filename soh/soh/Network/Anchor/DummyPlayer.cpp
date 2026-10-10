@@ -174,30 +174,58 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
         gSaveContext.equips.buttonItems[0] = originalButtonItem0;
     }
 
-    if (Anchor::Instance->roomState.pvpMode == 0 ||
-        (Anchor::Instance->roomState.pvpMode == 1 &&
-         client.teamId == CVarGetString(CVAR_REMOTE_ANCHOR("TeamId"), "default"))) {
+    bool pvpEnabled = !(Anchor::Instance->roomState.pvpMode == 0 ||
+                        (Anchor::Instance->roomState.pvpMode == 1 &&
+                         client.teamId == CVarGetString(CVAR_REMOTE_ANCHOR("TeamId"), "default")));
+    // In co-op, enemies we run for everyone can hit this player (see CoopEnemyMirror.cpp)
+    bool coopEnemyHits = Anchor::Instance->IsCoopSyncActive();
+
+    if (pvpEnabled) {
+        actor->flags &= ~ACTOR_FLAG_LOCK_ON_DISABLED;
+    } else {
         actor->flags |= ACTOR_FLAG_LOCK_ON_DISABLED;
-        return;
-    }
-
-    actor->flags &= ~ACTOR_FLAG_LOCK_ON_DISABLED;
-
-    if (player->cylinder.base.acFlags & AC_HIT && player->invincibilityTimer == 0) {
-        Anchor::Instance->SendPacket_DamagePlayer(client.clientId, player->actor.colChkInfo.damageEffect,
-                                                  player->actor.colChkInfo.damage);
-        if (player->actor.colChkInfo.damageEffect == DUMMY_PLAYER_HIT_RESPONSE_STUN) {
-            Actor_SetColorFilter(&player->actor, 0, 0xFF, 0, 24);
-        } else {
-            player->invincibilityTimer = 20;
+        if (!coopEnemyHits) {
+            return;
         }
     }
 
+    if (player->cylinder.base.acFlags & AC_HIT && player->invincibilityTimer == 0) {
+        Actor* attacker = player->cylinder.base.ac;
+        Collider* attack = player->cylinder.info.acHit;
+        if (attack != nullptr && (attack->atFlags & AT_TYPE_ENEMY)) {
+            // Only enemies we run for everyone (and what they shoot) count. Other enemies are run by every player for
+            // themselves, so their hits here aren't real.
+            if (Anchor::Instance->IsCoopMirroredAttacker(attacker) && player->cylinder.info.acHitInfo != nullptr) {
+                Anchor::Instance->SendPacket_CoopEnemyAttack(client.clientId, attacker,
+                                                             player->cylinder.info.acHitInfo);
+                player->invincibilityTimer = 20;
+            } else {
+                // The attacker mustn't react to it either, it would take this player for ours (Ganon knocks back
+                // whoever his sword hit, which is always the player in vanilla). It updates after us.
+                attack->atFlags &= ~AT_HIT;
+                if (player->cylinder.info.acHitInfo != nullptr) {
+                    player->cylinder.info.acHitInfo->toucherFlags &= ~TOUCH_HIT;
+                }
+            }
+        } else if (pvpEnabled) {
+            Anchor::Instance->SendPacket_DamagePlayer(client.clientId, player->actor.colChkInfo.damageEffect,
+                                                      player->actor.colChkInfo.damage);
+            if (player->actor.colChkInfo.damageEffect == DUMMY_PLAYER_HIT_RESPONSE_STUN) {
+                Actor_SetColorFilter(&player->actor, 0, 0xFF, 0, 24);
+            } else {
+                player->invincibilityTimer = 20;
+            }
+        }
+    }
+
+    // Player weapons can only hit with PvP, enemies only in co-op
+    player->cylinder.base.acFlags = AC_ON | (pvpEnabled ? AC_TYPE_PLAYER : 0) | (coopEnemyHits ? AC_TYPE_ENEMY : 0);
     Collider_UpdateCylinder(&player->actor, &player->cylinder);
 
     if (!(player->stateFlags2 & PLAYER_STATE2_FROZEN)) {
-        if (!(player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_HANGING_OFF_LEDGE |
-                                     PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_ON_HORSE))) {
+        // Without PvP other players aren't solid, as before
+        if (pvpEnabled && !(player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_HANGING_OFF_LEDGE |
+                                                   PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_ON_HORSE))) {
             CollisionCheck_SetOC(play, &play->colChkCtx, &player->cylinder.base);
         }
 
@@ -205,7 +233,7 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
             (player->invincibilityTimer <= 0)) {
             CollisionCheck_SetAC(play, &play->colChkCtx, &player->cylinder.base);
 
-            if (player->invincibilityTimer < 0) {
+            if (pvpEnabled && player->invincibilityTimer < 0) {
                 CollisionCheck_SetAT(play, &play->colChkCtx, &player->cylinder.base);
             }
         }

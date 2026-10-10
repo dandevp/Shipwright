@@ -52,6 +52,8 @@ void Anchor::HandlePacket_SetFlag(nlohmann::json payload) {
         effect->parameters[1] = flag;
         effect->Apply();
 
+        OnCoopTeammateFlagSet(payload.value("clientId", (uint32_t)0), flagType);
+
         // Special case: If King Zora moved, and the player has Ruto's Letter, convert it to an empty bottle
         if (flagType == FLAG_EVENT_CHECK_INF && flag == EVENTCHKINF_KING_ZORA_MOVED &&
             Inventory_HasSpecificBottle(ITEM_LETTER_RUTO)) {

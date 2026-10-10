@@ -20,6 +20,8 @@ DEFINE_HOOK(OnSceneInit, (int16_t sceneNum));
 DEFINE_HOOK(AfterSceneCommands, (int16_t sceneNum));
 DEFINE_HOOK(OnSceneFlagSet, (int16_t sceneNum, int16_t flagType, int16_t flag));
 DEFINE_HOOK(OnSceneFlagUnset, (int16_t sceneNum, int16_t flagType, int16_t flag));
+DEFINE_HOOK(OnTempClearFlagSet, (int16_t sceneNum, int16_t flag));
+DEFINE_HOOK(OnTempClearFlagUnset, (int16_t sceneNum, int16_t flag));
 DEFINE_HOOK(OnFlagSet, (int16_t flagType, int16_t flag));
 DEFINE_HOOK(OnFlagUnset, (int16_t flagType, int16_t flag));
 DEFINE_HOOK(OnSceneSpawnActors, ());

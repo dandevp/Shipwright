@@ -3,6 +3,8 @@
 #include "Anchor.h"
 #include "soh/Enhancements/nametag.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
+#include "soh/OTRGlobals.h"
+#include "soh/Enhancements/randomizer/SeedContext.h"
 
 extern "C" {
 #include "macros.h"
@@ -129,6 +131,44 @@ void Anchor::ProcessIncomingPacketQueue() {
             // packetType here is a string so we can't use a switch statement
             if (packetType == ALL_CLIENT_STATE)
                 HandlePacket_AllClientState(payload);
+            else if (packetType == COOP_ACTOR_DESTROYED)
+                HandlePacket_CoopActorDestroyed(payload);
+            else if (packetType == COOP_BOSS_AIM)
+                HandlePacket_CoopBossAim(payload);
+            else if (packetType == COOP_BOSS_EVENT)
+                HandlePacket_CoopBossEvent(payload);
+            else if (packetType == COOP_BLOCK_PUSH)
+                HandlePacket_CoopBlockPush(payload);
+            else if (packetType == COOP_BLOCK_SETTLED)
+                HandlePacket_CoopBlockSettled(payload);
+            else if (packetType == COOP_ENEMY_ATTACK)
+                HandlePacket_CoopEnemyAttack(payload);
+            else if (packetType == COOP_ENEMY_HEALTH)
+                HandlePacket_CoopEnemyHealth(payload);
+            else if (packetType == COOP_ENEMY_HIT)
+                HandlePacket_CoopEnemyHit(payload);
+            else if (packetType == COOP_ENEMY_PROJECTILE)
+                HandlePacket_CoopEnemyProjectile(payload);
+            else if (packetType == COOP_ENEMY_SNAPSHOT)
+                HandlePacket_CoopEnemySnapshot(payload);
+            else if (packetType == COOP_ITEM_COLLECTED)
+                HandlePacket_CoopItemCollected(payload);
+            else if (packetType == COOP_ITEM_DROP)
+                HandlePacket_CoopItemDrop(payload);
+            else if (packetType == COOP_SCENE_FLAG)
+                HandlePacket_CoopSceneFlag(payload);
+            else if (packetType == COOP_SCENE_SYNC)
+                HandlePacket_CoopSceneSync(payload);
+            else if (packetType == COOP_SCENE_SYNC_REQUEST)
+                HandlePacket_CoopSceneSyncRequest(payload);
+            else if (packetType == COOP_SHOT_STATE)
+                HandlePacket_CoopShotState(payload);
+            else if (packetType == COOP_STATUE_SETTLED)
+                HandlePacket_CoopStatueSettled(payload);
+            else if (packetType == COOP_STATUE_TURN)
+                HandlePacket_CoopStatueTurn(payload);
+            else if (packetType == COOP_TORCH_LIT)
+                HandlePacket_CoopTorchLit(payload);
             else if (packetType == DAMAGE_PLAYER)
                 HandlePacket_DamagePlayer(payload);
             else if (packetType == DISABLE_ANCHOR)
@@ -246,4 +286,35 @@ bool Anchor::IsSaveLoaded() {
     }
 
     return true;
+}
+
+uint32_t Anchor::GetOwnSeed() {
+    return IS_RANDO ? Rando::Context::GetInstance()->GetSeed() : 0;
+}
+
+bool Anchor::IsCoopSyncActive() {
+    return isConnected && roomState.coopSync && IsSaveLoaded();
+}
+
+// A co-op peer is a teammate playing the same game (version, seed) in the same scene as us
+bool Anchor::IsCoopPeer(const AnchorClient& client) {
+    return !client.self && client.online && client.isSaveLoaded && client.clientVersion == clientVersion &&
+           client.teamId == CVarGetString(CVAR_REMOTE_ANCHOR("TeamId"), "default") && client.seed == GetOwnSeed() &&
+           client.sceneNum == gPlayState->sceneNum;
+}
+
+std::vector<uint32_t> Anchor::GetCoopPeers(bool sameRoomOnly) {
+    std::vector<uint32_t> peers;
+
+    if (!IsCoopSyncActive()) {
+        return peers;
+    }
+
+    for (auto& [clientId, client] : clients) {
+        if (IsCoopPeer(client) && (!sameRoomOnly || client.curRoomNum == gPlayState->roomCtx.curRoom.num)) {
+            peers.push_back(clientId);
+        }
+    }
+
+    return peers;
 }

@@ -4072,3 +4072,14 @@ void BossVa_Reset(void) {
         sBodyBari[i] = 0;
     }
 }
+
+// SoH: the progress of the fight, which the Anchor co-op sync shares between players
+u8* gBossVaFightPhase = &sFightPhase;
+void* gBossVaCoopState[] = {
+    &sKillBari, sBodyBari, &sBodyState, &sFightPhase, &sPhase3StopMoving, &sPhase2Timer, &sPhase4HP,
+};
+size_t gBossVaCoopStateSizes[] = {
+    sizeof(sKillBari),         sizeof(sBodyBari),    sizeof(sBodyState), sizeof(sFightPhase),
+    sizeof(sPhase3StopMoving), sizeof(sPhase2Timer), sizeof(sPhase4HP),
+};
+s32 gBossVaCoopStateCount = ARRAY_COUNT(gBossVaCoopState);

@@ -6,7 +6,7 @@
 
 struct EnFd;
 
-typedef void (*EnFdActionFunc)(struct EnFd* this, PlayState* play);
+typedef void (*EnFdActionFunc)(struct EnFd*, PlayState* play);
 
 typedef enum {
     FD_EFFECT_NONE,
