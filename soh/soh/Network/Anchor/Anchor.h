@@ -74,6 +74,12 @@ struct CoopCarriedObject {
     Vec3s rot;
 };
 
+// A mod that changes gameplay, by its file name and a hash of its contents
+struct CoopModInfo {
+    std::string name;
+    std::string hash;
+};
+
 typedef struct {
     uint32_t clientId;
     std::string name;
@@ -83,8 +89,10 @@ typedef struct {
     bool online;
     bool self;
     uint32_t seed;
-    std::string modelId; // Their Link model, drawn on their dummy player (see PuppetModels.h), empty for vanilla
-    uint32_t modelSize;  // Size of their model's archive, for asking before downloading it
+    std::string modelId;  // Their Link model, drawn on their dummy player (see PuppetModels.h), empty for vanilla
+    uint32_t modelSize;   // Size of their model's archive, for asking before downloading it
+    std::string modsHash; // Their gameplay mods, which have to match ours for co-op (see CoopMods.cpp)
+    std::vector<CoopModInfo> gameplayMods;
     bool isSaveLoaded;
     bool isGameComplete;
     s16 sceneNum;
@@ -271,6 +279,12 @@ class Anchor : public Network {
     std::map<std::string, CoopModelDownload> coopModelDownloads; // Models we're receiving, by id
     std::set<std::string> coopModelsDeclined;                    // Models we were asked about, so we only ask once
     void OnCoopClientModel(uint32_t clientId);
+    std::vector<CoopModInfo> ownGameplayMods; // See CoopMods.cpp
+    std::string ownModsHash;
+    std::set<std::string> coopModsAsked; // Room owners' mods we were asked to match, so we only ask once
+    void ScanCoopMods();
+    nlohmann::json PrepCoopMods();
+    void OnCoopClientMods(uint32_t clientId);
     void SendCoopModelChunks();
     void SendPacket_ModelRequest(uint32_t clientId, const std::string& modelId);
     void AddCoopCarriedObject(nlohmann::json& payload);
@@ -430,6 +444,7 @@ class Anchor : public Network {
     };
     std::vector<CoopModelSource> GetCoopModelSources();
     void SetCoopModelSourceIncluded(const std::string& name, bool included);
+    size_t RestoreCoopDisabledMods();
     const std::string& GetOwnModelId() const {
         return ownModelId;
     }

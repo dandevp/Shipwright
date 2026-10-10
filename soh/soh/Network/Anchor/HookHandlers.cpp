@@ -120,6 +120,7 @@ void Anchor::RegisterHooks() {
         SendCoopModelChunks();
         if (ownModelNeedsBuilding) {
             ownModelNeedsBuilding = false;
+            ScanCoopMods();
             BuildOwnCoopModel();
         }
     });

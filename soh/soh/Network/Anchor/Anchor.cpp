@@ -327,7 +327,7 @@ bool Anchor::IsCoopSyncActive() {
 // then only what doesn't touch either seed's loot is shared (see IsSameSeedPeer).
 bool Anchor::IsCoopPeer(const AnchorClient& client) {
     return !client.self && client.online && client.isSaveLoaded && client.clientVersion == clientVersion &&
-           client.teamId == CVarGetString(CVAR_REMOTE_ANCHOR("TeamId"), "default") &&
+           client.modsHash == ownModsHash && client.teamId == CVarGetString(CVAR_REMOTE_ANCHOR("TeamId"), "default") &&
            client.sceneNum == gPlayState->sceneNum;
 }
 

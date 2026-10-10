@@ -100,4 +100,5 @@ void Anchor::HandlePacket_UpdateRoomState(nlohmann::json payload) {
     roomState.coopSync = payload["state"].value("coopSync", (u8)0);
     roomState.coopSettings = payload["state"].value("coopSettings", nlohmann::json());
     roomState.coopEnemySeed = payload["state"].value("coopEnemySeed", (uint32_t)0);
+    OnCoopClientMods(roomState.ownerClientId);
 }

@@ -209,7 +209,13 @@ bool IsOotrsExtension(std::string extension) {
     return StringHelper::IEquals(extension, ".ootrs");
 }
 
+void Anchor_ApplyPendingModChanges();
+
 void UpdateModFiles(bool init = false, bool reset = false) {
+    // Mods disabled or enabled again to match a co-op room owner, while they weren't in use (see CoopMods.cpp)
+    if (init) {
+        Anchor_ApplyPendingModChanges();
+    }
     if (init || reset) {
         enabledModFiles.clear();
         enabledModFiles = GetEnabledModsFromCVar();

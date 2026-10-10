@@ -184,6 +184,15 @@ void AnchorMainMenu(WidgetInfo& info) {
         }
         ImGui::Text("Model: %s", anchor->GetOwnModelId().empty() ? "vanilla" : anchor->GetOwnModelId().c_str());
 
+        UIWidgets::PushStyleButton(THEME_COLOR);
+        if (ImGui::Button("Restore Mods Disabled for Co-op")) {
+            size_t count = anchor->RestoreCoopDisabledMods();
+            SohGui::RegisterPopup("Restore Mods", count == 0
+                                                      ? "No mods were disabled for co-op."
+                                                      : fmt::format("{} mods come back at the next start.", count));
+        }
+        UIWidgets::PopStyleButton();
+
         static const char* downloadModes[] = { "Ask", "Always", "Never" };
         UIWidgets::CVarCombobox("Download Teammates' Models:", CVAR_REMOTE_ANCHOR("Model.Download"), downloadModes,
                                 UIWidgets::ComboboxOptions()

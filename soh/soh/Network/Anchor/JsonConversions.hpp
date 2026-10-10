@@ -60,6 +60,13 @@ inline void from_json(const json& j, AnchorClient& client) {
     client.seed = j.value("seed", (u32)0);
     client.modelId = j.value("modelId", "");
     client.modelSize = j.value("modelSize", (u32)0);
+    client.modsHash = j.value("modsHash", "");
+    client.gameplayMods.clear();
+    if (j.contains("mods") && j["mods"].is_array()) {
+        for (auto& mod : j["mods"]) {
+            client.gameplayMods.push_back({ mod.value("name", ""), mod.value("hash", "") });
+        }
+    }
     client.isSaveLoaded = j.value("isSaveLoaded", false);
     client.isGameComplete = j.value("isGameComplete", false);
     client.sceneNum = j.value("sceneNum", (s16)SCENE_ID_MAX);

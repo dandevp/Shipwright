@@ -29,6 +29,8 @@ nlohmann::json Anchor::PrepClientState() {
     payload["online"] = true;
     payload["modelId"] = ownModelId;
     payload["modelSize"] = ownModelData != nullptr ? ownModelData->size() : 0;
+    payload["modsHash"] = ownModsHash;
+    payload["mods"] = PrepCoopMods();
 
     if (IsSaveLoaded()) {
         payload["seed"] = GetOwnSeed();
@@ -71,7 +73,10 @@ void Anchor::HandlePacket_UpdateClientState(nlohmann::json payload) {
         clients[clientId].seed = client.seed;
         clients[clientId].modelId = client.modelId;
         clients[clientId].modelSize = client.modelSize;
+        clients[clientId].modsHash = client.modsHash;
+        clients[clientId].gameplayMods = client.gameplayMods;
         OnCoopClientModel(clientId);
+        OnCoopClientMods(clientId);
         clients[clientId].isSaveLoaded = client.isSaveLoaded;
         clients[clientId].isGameComplete = client.isGameComplete;
         clients[clientId].sceneNum = client.sceneNum;
