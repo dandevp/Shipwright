@@ -806,6 +806,7 @@ static void CalculateBarren() {
     // Isolated Areas and Link's Pocket are never Hinted Barren
     NotBarren[RA_NONE] = true;
     NotBarren[RA_LINKS_POCKET] = true;
+    NotBarren[RA_ARCHIPELAGO_FOREIGN] = true;
 
     // When shop shields/tunics are gated behind finding a shield, those items become relevant, so
     // regions holding a shield or tunic should not be hinted foolish.

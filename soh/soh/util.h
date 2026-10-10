@@ -10,7 +10,8 @@ typedef enum FileType {
     FILE_TYPE_SAVE_RANDO,
     FILE_TYPE_PRESET,
     FILE_TYPE_SPOILER,
-    FILE_TYPE_SAVE_SPEEDRUN
+    FILE_TYPE_SAVE_SPEEDRUN,
+    FILE_TYPE_SAVE_ARCHI
 } FileType;
 
 namespace SohUtils {

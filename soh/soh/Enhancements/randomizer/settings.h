@@ -118,6 +118,9 @@ class Settings {
      * @param spoilerFileJson
      */
     void ParseJson(const nlohmann::json& spoilerFileJson);
+
+    void ResetExcludedLocations();
+
     std::map<RandomizerArea, std::vector<RandomizerTrick>> mTricksByArea = {};
 
     /**

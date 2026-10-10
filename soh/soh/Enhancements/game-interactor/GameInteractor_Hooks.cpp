@@ -14,6 +14,10 @@ void GameInteractor_ExecuteOnLoadGame(int32_t fileNum) {
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnLoadGame>(fileNum);
 }
 
+void GameInteractor_ExecutePostLoadGame(int32_t fileNum) {
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::PostLoadGame>(fileNum);
+}
+
 void GameInteractor_ExecuteOnExitGame(int32_t fileNum) {
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnExitGame>(fileNum);
 }
@@ -110,6 +114,10 @@ void GameInteractor_ExecuteOnLinkEquipmentChange() {
 
 void GameInteractor_ExecuteOnPlayerUpdate() {
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnPlayerUpdate>();
+}
+
+void GameInteractor_ExecuteOnPlayerDeath() {
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::OnPlayerDeath>();
 }
 
 void GameInteractor_ExecuteOnSetDoAction(uint16_t action) {
@@ -306,6 +314,10 @@ void GameInteractor_ExecuteOnDialogMessage() {
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnDialogMessage>();
 }
 
+void GameInteractor_ExecuteOnDialogClose() {
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::OnDialogClose>();
+}
+
 void GameInteractor_ExecuteOnPresentTitleCard() {
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnPresentTitleCard>();
 }
@@ -401,6 +413,20 @@ void GameInteractor_RegisterOnAssetAltChange(void (*fn)(void)) {
 
 void GameInteractor_ExecuteOnKaleidoUpdate() {
     GameInteractor::Instance->ExecuteHooks<GameInteractor::OnKaleidoUpdate>();
+}
+
+// Mark: Randomizer
+void GameInteractor_ExecuteOnRandomizerItemGivenHooks(uint32_t rc, GetItemEntry gi, uint8_t isGiSkipped) {
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::OnRandomizerItemGivenHooks>(rc, gi, isGiSkipped);
+}
+
+// MARK: Archipelago
+void GameInteractor_ExecuteOnArchipelagoItemReceived(uint32_t rg) {
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::OnArchipelagoItemReceived>(rg);
+}
+
+void GameInteractor_ExecuteOnRandomizerExternalCheck(uint32_t rc) {
+    GameInteractor::Instance->ExecuteHooks<GameInteractor::OnRandomizerExternalCheck>(rc);
 }
 
 // MARK: Messages

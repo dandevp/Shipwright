@@ -6,3 +6,9 @@
 	path = torch
 	url = https://github.com/HarbourMasters/Torch.git
 	branch = main
+[submodule "subprojects/wswrap"]
+	path = subprojects/wswrap
+	url = https://github.com/black-sliver/wswrap.git
+[submodule "subprojects/apclientpp"]
+	path = subprojects/apclientpp
+	url = https://github.com/black-sliver/apclientpp.git

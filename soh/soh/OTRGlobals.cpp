@@ -52,6 +52,7 @@
 #include <ship/utils/StringHelper.h>
 #include "Enhancements/custom-message/CustomMessageManager.h"
 #include "util.h"
+#include "soh/Enhancements/randomizer/hook_handlers.h"
 
 #include <fast/Fast3dGui.h>
 #include <fast/debug/GfxDebugger.h>
@@ -2541,4 +2542,18 @@ bool SoH_HandleConfigDrop(char* filePath) {
         return false;
     }
     return false;
+}
+
+extern "C" void ParseArchipelago() {
+    OTRGlobals::Instance->gRandoContext->ParseArchipelago();
+}
+
+extern "C" bool checkArchipelagoSlotInfo(const char* slotName, const char* roomHash) {
+    const std::string slot = std::string(slotName);
+    const std::string room = std::string(roomHash);
+    return ArchipelagoClient::GetInstance().slotMatch(slot, room);
+}
+
+extern "C" void Archipelago_ShowArchipelagoMenu() {
+    SohGui::ShowArchipelagoSettingsMenu();
 }

@@ -8,6 +8,7 @@
 DEFINE_HOOK(OnZTitleInit, (void* gameState));
 DEFINE_HOOK(OnZTitleUpdate, (void* gameState));
 DEFINE_HOOK(OnLoadGame, (int32_t fileNum));
+DEFINE_HOOK(PostLoadGame, (int32_t fileNum));
 DEFINE_HOOK(OnExitGame, (int32_t fileNum));
 DEFINE_HOOK(OnGameStateMainStart, ());
 DEFINE_HOOK(OnGameFrameUpdate, ());
@@ -28,6 +29,7 @@ DEFINE_HOOK(OnSceneSpawnActors, ());
 DEFINE_HOOK(OnLinkSkeletonInit, ());
 DEFINE_HOOK(OnLinkEquipmentChange, ());
 DEFINE_HOOK(OnPlayerUpdate, ());
+DEFINE_HOOK(OnPlayerDeath, ());
 DEFINE_HOOK(OnSetDoAction, (uint16_t action));
 DEFINE_HOOK(OnPlayerSfx, (u16 sfxId));
 DEFINE_HOOK(OnOcarinaSongAction, ());
@@ -63,6 +65,7 @@ DEFINE_HOOK(OnLoadFile, (int32_t fileNum));
 DEFINE_HOOK(OnDeleteFile, (int32_t fileNum));
 
 DEFINE_HOOK(OnDialogMessage, ());
+DEFINE_HOOK(OnDialogClose, ());
 DEFINE_HOOK(OnPresentTitleCard, ());
 DEFINE_HOOK(OnInterfaceUpdate, ());
 DEFINE_HOOK(OnKaleidoscopeUpdate, (int16_t inDungeonScene));
@@ -88,6 +91,10 @@ DEFINE_HOOK(OnGenerationCompletion, ());
 DEFINE_HOOK(OnSetGameLanguage, ());
 DEFINE_HOOK(OnAssetAltChange, ());
 DEFINE_HOOK(OnKaleidoUpdate, ());
+
+DEFINE_HOOK(OnRandomizerItemGivenHooks, (uint32_t rc, GetItemEntry gi, uint8_t isGiSkipped));
+DEFINE_HOOK(OnArchipelagoItemReceived, (uint32_t rg));
+DEFINE_HOOK(OnRandomizerExternalCheck, (uint32_t rc));
 
 // Messages
 DEFINE_HOOK(OnOpenText, (uint16_t * textId, bool* loadFromMessageTable));

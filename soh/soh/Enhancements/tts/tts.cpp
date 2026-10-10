@@ -851,7 +851,7 @@ void RegisterOnUpdateMainMenuSelection() {
                 return;
             uint8_t language = (gSaveContext.language == LANGUAGE_JPN) ? (uint8_t)LANGUAGE_ENG : gSaveContext.language;
 
-            auto optionName = SohFileSelect_GetSettingText(optionIndex, language);
+            auto optionName = SohFileSelect_GetRandomizerSettingText(optionIndex, language);
             SpeechSynthesizer::Instance->Speak(optionName, GetLanguageCode());
         });
 

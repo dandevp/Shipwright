@@ -20,6 +20,9 @@
 #include "soh/Enhancements/debugger/MessageViewer.h"
 #include "soh/Notification/Notification.h"
 #include "soh/Enhancements/TimeDisplay/TimeDisplay.h"
+#include "soh/Network/Archipelago/ArchipelagoSettingsWindow.h"
+#include "soh/Network/Archipelago/ArchipelagoConsoleWindow.h"
+#include "soh/Network/Archipelago/ArchipelagoHintWindow.h"
 #include "soh/Enhancements/mod_menu.h"
 #include "soh/Network/Anchor/Anchor.h"
 #include "soh/Enhancements/audio/AudioEditor.h"
@@ -107,6 +110,9 @@ std::shared_ptr<ItemTrackerWindow> mItemTrackerWindow;
 std::shared_ptr<TimeSplits::TimesplitsWindow> mTimeSplitsWindow;
 std::shared_ptr<TimeSplits::TimesplitsSettingsWindow> mTimeSplitSettingsWindow;
 std::shared_ptr<PlandomizerWindow> mPlandomizerWindow;
+std::shared_ptr<ArchipelagoSettingsWindow> mArchipelagoSettingsWindow;
+std::shared_ptr<ArchipelagoConsoleWindow> mArchipelagoConsoleWindow;
+std::shared_ptr<ArchipelagoHintWindow> mArchipelagoHintWindow;
 std::shared_ptr<SohModalWindow> mModalWindow;
 std::shared_ptr<Notification::Window> mNotificationWindow;
 std::shared_ptr<TimeDisplayWindow> mTimeDisplayWindow;
@@ -263,6 +269,15 @@ void SetupGuiElements() {
     mPlandomizerWindow =
         std::make_shared<PlandomizerWindow>(CVAR_WINDOW("PlandomizerEditor"), "Plandomizer Editor", ImVec2(850, 760));
     gui->AddGuiWindow(mPlandomizerWindow);
+    mArchipelagoSettingsWindow = std::make_shared<ArchipelagoSettingsWindow>(CVAR_WINDOW("ArchipelagoSettingsWindow"),
+                                                                             "Archipelago Settings", ImVec2(600, 450));
+    gui->AddGuiWindow(mArchipelagoSettingsWindow);
+    mArchipelagoConsoleWindow = std::make_shared<ArchipelagoConsoleWindow>(CVAR_WINDOW("ArchipelagoConsoleWindow"),
+                                                                           "Archipelago Console", ImVec2(600, 550));
+    gui->AddGuiWindow(mArchipelagoConsoleWindow);
+    mArchipelagoHintWindow = std::make_shared<ArchipelagoHintWindow>(CVAR_WINDOW("ArchipelagoHintWindow"),
+                                                                     "Archipelago Hints", ImVec2(300, 200));
+    gui->AddGuiWindow(mArchipelagoHintWindow);
     mNotificationWindow = std::make_shared<Notification::Window>(CVAR_WINDOW("Notifications"), "Notifications Window");
     gui->AddGuiWindow(mNotificationWindow);
     mNotificationWindow->Show();
@@ -305,6 +320,9 @@ void Destroy() {
     mTimeSplitsWindow = nullptr;
     mTimeSplitSettingsWindow = nullptr;
     mPlandomizerWindow = nullptr;
+    mArchipelagoSettingsWindow = nullptr;
+    mArchipelagoConsoleWindow = nullptr;
+    mArchipelagoHintWindow = nullptr;
     mTimeDisplayWindow = nullptr;
     mAnchorRoomWindow = nullptr;
 }
@@ -335,4 +353,9 @@ void ShowRandomizerSettingsMenu() {
 void ShowEscMenu() {
     mSohMenu->Show();
 }
+
+void ShowArchipelagoSettingsMenu() {
+    mArchipelagoSettingsWindow->Show();
+}
+
 } // namespace SohGui

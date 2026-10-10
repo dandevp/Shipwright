@@ -8,6 +8,8 @@ enemies between teammates, so they can play through the same areas together.
 - Only players on the same team, with the same game version and the same randomizer seed, sync with each other.
 - They sync with each other while in the same scene. Vanilla and Master Quest dungeons are kept apart.
 - Story progress (NPCs reacting to it) needs "Sync Items and Flags" on as well.
+- While an Archipelago slot is connected, "Sync Items and Flags" is greyed out (Archipelago moves the items),
+  Co-op Sync stays available.
 
 ## What is shared
 

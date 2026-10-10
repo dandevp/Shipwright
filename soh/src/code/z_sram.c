@@ -11,6 +11,7 @@
 #include "soh/Enhancements/speedrun/Speedrun.h"
 #include "soh/ResourceManagerHelpers.h"
 #include <libultraship/bridge/consolevariablebridge.h>
+#include "soh/Network/Archipelago/Archipelago.h"
 
 #define NUM_DUNGEONS 8
 #define NUM_COWS 10
@@ -261,10 +262,15 @@ void Sram_InitSave(FileChooseContext* fileChooseCtx) {
 
     u8 currentQuest = fileChooseCtx->questType[fileChooseCtx->buttonIndex];
 
-    if (currentQuest == QUEST_RANDOMIZER && (Randomizer_IsSeedGenerated() || Randomizer_IsSpoilerLoaded())) {
+    // An Archipelago file is a randomizer file filled in from the Archipelago server
+    if ((currentQuest == QUEST_RANDOMIZER && (Randomizer_IsSeedGenerated() || Randomizer_IsSpoilerLoaded())) ||
+        currentQuest == QUEST_ARCHIPELAGO) {
         gSaveContext.ship.quest.id = QUEST_RANDOMIZER;
 
         Randomizer_InitSaveFile();
+        if (currentQuest == QUEST_ARCHIPELAGO) {
+            Archipelago_InitSaveFile();
+        }
     } else {
         gSaveContext.ship.quest.id = currentQuest;
     }

@@ -63,4 +63,5 @@ void SpoilAreaFromCantObtain(RandomizerGet rg);
 void RecalculateAvailableChecks(RandomizerRegion startingRegion = RR_ROOT, RandoAgeTime startingAgeTime = RAT_NONE);
 void LoadFromPreset(const nlohmann::json& info);
 bool AreAllSilversSpoiled();
+int GetStartingShopItem(uint32_t sceneId);
 } // namespace CheckTracker

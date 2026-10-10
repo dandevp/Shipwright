@@ -836,6 +836,12 @@ void SohMenu::AddMenuEnhancements() {
         .PreFunc(HideQuestPreFunc(QUEST_SPEEDRUN_MASTER))
         .Options(CheckboxOptions().Tooltip(
             "Hides the Speedrun Master Quest option when selecting a quest type on the File Select screen."));
+    AddWidget(path, "Hide Archipelago", WIDGET_CVAR_CHECKBOX)
+        .CVar(CVAR_ENHANCEMENT("FileSelect.HideArchipelagoQuest"))
+        .RaceDisable(false)
+        .PreFunc(HideQuestPreFunc(QUEST_ARCHIPELAGO))
+        .Options(CheckboxOptions().Tooltip(
+            "Hides the Archipelago option when selecting a quest type on the File Select screen."));
 
     path.column = SECTION_COLUMN_3;
     AddWidget(path, "Misc.", WIDGET_SEPARATOR_TEXT);

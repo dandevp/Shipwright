@@ -765,20 +765,26 @@ static void DrawMoreInfo(FileChooseContext* thisx, s16 fileIndex, u8 alpha) {
 void RegisterFileSelectMoreInfo() {
     COND_VB_SHOULD(VB_FILE_SELECT_DRAW_DEATHS, CVAR_FILE_SELECT_MORE_INFO_VALUE, {
         FileChooseContext* thisx = va_arg(args, FileChooseContext*);
-        *should = thisx->menuMode != FS_MENU_MODE_SELECT;
+        s16 fileIndex = va_arg(args, s32);
+        if (thisx->menuMode == FS_MENU_MODE_SELECT && Save_GetSaveMetaInfo(fileIndex)->archiSave == 0) {
+            *should = false;
+        }
     });
 
     COND_VB_SHOULD(VB_FILE_SELECT_DRAW_HEARTS, CVAR_FILE_SELECT_MORE_INFO_VALUE, {
         FileChooseContext* thisx = va_arg(args, FileChooseContext*);
-        *should = thisx->menuMode != FS_MENU_MODE_SELECT;
+        s16 fileIndex = va_arg(args, s32);
+        if (thisx->menuMode == FS_MENU_MODE_SELECT && Save_GetSaveMetaInfo(fileIndex)->archiSave == 0) {
+            *should = false;
+        }
     });
 
     COND_VB_SHOULD(VB_FILE_SELECT_DRAW_QUEST_ITEMS, CVAR_FILE_SELECT_MORE_INFO_VALUE, {
         FileChooseContext* thisx = va_arg(args, FileChooseContext*);
-        s32 fileIndex = va_arg(args, s32);
+        s16 fileIndex = va_arg(args, s32);
         u32 textAlpha = va_arg(args, u32);
 
-        if (thisx->menuMode == FS_MENU_MODE_SELECT) {
+        if (thisx->menuMode == FS_MENU_MODE_SELECT && Save_GetSaveMetaInfo(fileIndex)->archiSave == 0) {
             DrawMoreInfo(thisx, fileIndex, textAlpha);
             *should = false;
         }
@@ -786,9 +792,10 @@ void RegisterFileSelectMoreInfo() {
 
     COND_VB_SHOULD(VB_FILE_SELECT_DRAW_FILE_INFO_BOX, CVAR_FILE_SELECT_MORE_INFO_VALUE, {
         FileChooseContext* thisx = va_arg(args, FileChooseContext*);
+        s16 fileIndex = va_arg(args, s32);
 
         // Draw the small file name box instead when more meta info is enabled
-        if (thisx->menuMode == FS_MENU_MODE_SELECT) {
+        if (thisx->menuMode == FS_MENU_MODE_SELECT && Save_GetSaveMetaInfo(fileIndex)->archiSave == 0) {
             OPEN_DISPS(thisx->state.gfxCtx);
 
             // Location of file 1 small name box vertices

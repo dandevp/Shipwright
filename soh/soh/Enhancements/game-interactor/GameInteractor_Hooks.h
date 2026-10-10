@@ -10,6 +10,7 @@ extern "C" {
 void GameInteractor_ExecuteOnZTitleInit(void* gameState);
 void GameInteractor_ExecuteOnZTitleUpdate(void* gameState);
 void GameInteractor_ExecuteOnLoadGame(int32_t fileNum);
+void GameInteractor_ExecutePostLoadGame(int32_t fileNum);
 void GameInteractor_ExecuteOnExitGame(int32_t fileNum);
 void GameInteractor_ExecuteOnGameStateMainStart();
 void GameInteractor_ExecuteOnGameFrameUpdate();
@@ -30,6 +31,7 @@ void GameInteractor_ExecuteOnSceneSpawnActors();
 void GameInteractor_ExecuteOnLinkSkeletonInit();
 void GameInteractor_ExecuteOnLinkEquipmentChange();
 void GameInteractor_ExecuteOnPlayerUpdate();
+void GameInteractor_ExecuteOnPlayerDeath();
 void GameInteractor_ExecuteOnSetDoAction(uint16_t action);
 void GameInteractor_ExecuteOnPlayerSfx(u16 sfxId);
 void GameInteractor_ExecuteOnOcarinaSongAction();
@@ -68,6 +70,7 @@ void GameInteractor_ExecuteOnDeleteFile(int32_t fileNum);
 
 // MARK: - Dialog
 void GameInteractor_ExecuteOnDialogMessage();
+void GameInteractor_ExecuteOnDialogClose();
 void GameInteractor_ExecuteOnPresentTitleCard();
 void GameInteractor_ExecuteOnInterfaceUpdate();
 void GameInteractor_ExecuteOnKaleidoscopeUpdate(int16_t inDungeonScene);
@@ -98,6 +101,13 @@ void GameInteractor_RegisterOnAssetAltChange(void (*fn)(void));
 
 // Mark: - Pause Menu
 void GameInteractor_ExecuteOnKaleidoUpdate();
+
+// Mark: - Randomizer
+void GameInteractor_ExecuteOnRandomizerItemGivenHooks(uint32_t rc, GetItemEntry gi, uint8_t isGiSkipped);
+
+// Mark: - Archipelago
+void GameInteractor_ExecuteOnArchipelagoItemReceived(uint32_t rg);
+void GameInteractor_ExecuteOnRandomizerExternalCheck(uint32_t rc);
 
 // MARK: - Messages
 void GameInteractor_ExecuteOnOpenText(uint16_t* textId, bool* loadFromMessageTable);

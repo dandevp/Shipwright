@@ -87,6 +87,12 @@ void Trials::ParseJson(const nlohmann::json& spoilerFileJson) {
     }
 }
 
+void Trials::RemoveAllTrials() {
+    for (auto& trial : mTrials) {
+        trial.SetAsSkipped();
+    }
+}
+
 std::unordered_map<uint32_t, RandomizerHintTextKey> Trials::GetAllTrialHintHeys() const {
     std::unordered_map<uint32_t, RandomizerHintTextKey> output = {};
     for (auto trial : mTrials) {

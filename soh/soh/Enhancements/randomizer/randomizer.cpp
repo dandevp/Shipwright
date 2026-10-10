@@ -20,6 +20,8 @@
 #include "soh/util.h"
 #include "randomizerTypes.h"
 #include "randomizerEnumStrings.h"
+#include "soh/Network/Archipelago/Archipelago.h"
+#include "soh/Notification/Notification.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "soh/Enhancements/randomizer/RCToRandInf.h"
 #include "dungeon.h"
@@ -844,7 +846,11 @@ ShopItemIdentity Randomizer::IdentifyShopItem(s32 sceneNum, u8 slotIndex) {
         (sceneNum == SCENE_BAZAAR && gSaveContext.entranceIndex == ENTR_BAZAAR_0) ? SCENE_TEST01 : sceneNum,
         slotIndex - 1);
 
-    if (location->GetRandomizerCheck() != RC_UNKNOWN_CHECK) {
+    RandomizerCheck randoCheck = location->GetRandomizerCheck();
+
+    // Archipelago leaves shop slots that hold nothing for this world empty
+    if (randoCheck != RC_UNKNOWN_CHECK &&
+        Rando::Context::GetInstance()->GetItemLocation(randoCheck)->GetPlacedRandomizerGet() != RG_NONE) {
         IdentifyCheck(&shopItemIdentity.identity, location);
         shopItemIdentity.ogItemId = (GetItemID)Rando::StaticData::RetrieveItem(location->GetVanillaItem()).GetItemID();
 
@@ -1201,6 +1207,12 @@ extern "C" u16 Randomizer_Item_Give(PlayState* play, GetItemEntry giEntry) {
             Rupees_ChangeBy(1);
         }
 
+        return Return_Item_Entry(giEntry, RG_NONE);
+    }
+
+    // If it's an archipelago item, don't give anything
+    if (item == RG_ARCHIPELAGO_ITEM_USEFUL || item == RG_ARCHIPELAGO_ITEM_JUNK ||
+        item == RG_ARCHIPELAGO_ITEM_PROGRESSIVE) {
         return Return_Item_Entry(giEntry, RG_NONE);
     }
 

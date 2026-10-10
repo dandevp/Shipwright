@@ -5,6 +5,7 @@
 #include "soh/SohGui/SohMenu.h"
 #include "soh/util.h"
 #include "soh/SohGui/UIWidgets.hpp"
+#include "soh/Network/Archipelago/Archipelago.h"
 
 namespace SohGui {
 extern std::shared_ptr<SohMenu> mSohMenu;
@@ -209,9 +210,17 @@ void AnchorAdminMenu(WidgetInfo& info) {
                                     .Color(THEME_COLOR))) {
         anchor->SendPacket_UpdateRoomState();
     }
+
+    if (ArchipelagoClient::GetInstance().IsConnected()) { // slot connected
+        ImGui::BeginDisabled();
+    }
+
     if (UIWidgets::CVarCheckbox("Sync Items & Flags", CVAR_REMOTE_ANCHOR("RoomSettings.SyncItemsAndFlags"),
                                 UIWidgets::CheckboxOptions().DefaultValue(true).Color(THEME_COLOR))) {
         anchor->SendPacket_UpdateRoomState();
+    }
+    if (ArchipelagoClient::GetInstance().IsConnected()) { // slot connected
+        ImGui::EndDisabled();
     }
     if (UIWidgets::CVarCheckbox(
             "Co-op Sync (Experimental)", CVAR_REMOTE_ANCHOR("RoomSettings.CoopSync"),

@@ -4,9 +4,11 @@
 #include "item_override.h"
 #include "hint.h"
 #include "item_location.h"
+#include "soh/Network/Archipelago/Archipelago.h"
 
 #include <memory>
 #include <array>
+#include <queue>
 #include <map>
 #include <set>
 #include <nlohmann/json.hpp>
@@ -119,6 +121,8 @@ class Context {
 
     GetItemEntry GetFinalGIEntry(RandomizerCheck rc, bool checkObtainability = true, GetItemID ogItemId = GI_NONE,
                                  bool spoilAreas = false);
+    void AddReceivedArchipelagoItem(const RandomizerGet item);
+    GetItemEntry GetArchipelagoGIEntry();
     void ParseSpoiler(const char* spoilerFileName);
     void ParseHashIconIndexesJson(const nlohmann::json& spoilerFileJson);
     void ParseItemLocationsJson(const nlohmann::json& spoilerFileJson);
@@ -135,6 +139,13 @@ class Context {
     bool allLocationsReachable = false;
     RandomizerArea GetAreaFromString(std::string str);
     int CountEmptyLocations(bool countShops);
+
+    void ParseArchipelago();
+    void ParseArchipelagoOptions();
+    void ParseArchipelagoTricks();
+    void ParseArchipelagoExcludedLocations();
+    void ParseArchipelagoItemsLocations(const std::vector<ArchipelagoClient::ApItem>& slot_data);
+    void ParseArchipelagoHints();
 
     /**
      * @brief Get the hash for the current seed.
@@ -199,5 +210,6 @@ class Context {
     std::string mHash;
     std::string mSeedString;
     uint32_t mFinalSeed = 0;
+    std::queue<RandomizerGet> mAPreceiveQueue = {};
 };
 } // namespace Rando

@@ -21,6 +21,7 @@ void RegisterPopup(std::string title, std::string message, std::string button1 =
 size_t PopupsQueued();
 bool DismissPopup(std::string title);
 void ShowRandomizerSettingsMenu();
+void ShowArchipelagoSettingsMenu();
 void ShowEscMenu();
 UIWidgets::Colors GetMenuThemeColor();
 std::shared_ptr<SohMenu> GetSohMenu();
