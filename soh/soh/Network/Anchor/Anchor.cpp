@@ -48,6 +48,7 @@ void Anchor::Disable() {
 void Anchor::OnConnected() {
     SendPacket_Handshake();
     hooksNeedRegistering = true;
+    ownModelNeedsBuilding = true;
 
     if (IsSaveLoaded()) {
         SendPacket_RequestTeamState();
@@ -185,6 +186,10 @@ void Anchor::ProcessIncomingPacketQueue() {
                 HandlePacket_CoopStatueTurn(payload);
             else if (packetType == COOP_TORCH_LIT)
                 HandlePacket_CoopTorchLit(payload);
+            else if (packetType == MODEL_CHUNK)
+                HandlePacket_ModelChunk(payload);
+            else if (packetType == MODEL_REQUEST)
+                HandlePacket_ModelRequest(payload);
             else if (packetType == DAMAGE_PLAYER)
                 HandlePacket_DamagePlayer(payload);
             else if (packetType == DISABLE_ANCHOR)

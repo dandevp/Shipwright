@@ -11,6 +11,7 @@
 #include <mutex>
 #include <vector>
 #include <map>
+#include <set>
 #include <chrono>
 
 extern "C" {
@@ -83,6 +84,7 @@ typedef struct {
     bool self;
     uint32_t seed;
     std::string modelId; // Their Link model, drawn on their dummy player (see PuppetModels.h), empty for vanilla
+    uint32_t modelSize;  // Size of their model's archive, for asking before downloading it
     bool isSaveLoaded;
     bool isGameComplete;
     s16 sceneNum;
@@ -251,6 +253,26 @@ class Anchor : public Network {
     void ApplyCoopTeammatesStandingOn(Actor* actor);
     void OnCoopFloormasterInit(Actor* actor);
     void SendCoopEnemySnapshots();
+    struct CoopModelUpload {
+        uint32_t clientId;
+        std::string modelId;
+        std::shared_ptr<std::vector<uint8_t>> data;
+        size_t offset;
+    };
+    struct CoopModelDownload {
+        uint32_t clientId;
+        std::chrono::steady_clock::time_point lastChunkTime; // Dropped when stalled, like when the sender left
+        std::vector<uint8_t> data;
+    };
+    std::string ownModelId;                             // Our Link model, see CoopModels.cpp
+    std::shared_ptr<std::vector<uint8_t>> ownModelData; // Its archive, sent to teammates who ask
+    std::atomic<bool> ownModelNeedsBuilding = true;     // Bundled once connected, and again when picked in the menu
+    std::vector<CoopModelUpload> coopModelUploads;      // Teammates we're sending our model to, one at a time
+    std::map<std::string, CoopModelDownload> coopModelDownloads; // Models we're receiving, by id
+    std::set<std::string> coopModelsDeclined;                    // Models we were asked about, so we only ask once
+    void OnCoopClientModel(uint32_t clientId);
+    void SendCoopModelChunks();
+    void SendPacket_ModelRequest(uint32_t clientId, const std::string& modelId);
     void AddCoopCarriedObject(nlohmann::json& payload);
     bool UpdateCoopCarriedByTeammate(Actor* actor);
     void UpdateCoopCarriedCopies();
@@ -326,6 +348,8 @@ class Anchor : public Network {
     inline static const std::string COOP_STATUE_SETTLED = "COOP_STATUE_SETTLED";
     inline static const std::string COOP_STATUE_TURN = "COOP_STATUE_TURN";
     inline static const std::string COOP_TORCH_LIT = "COOP_TORCH_LIT";
+    inline static const std::string MODEL_CHUNK = "MODEL_CHUNK";
+    inline static const std::string MODEL_REQUEST = "MODEL_REQUEST";
     inline static const std::string DAMAGE_PLAYER = "DAMAGE_PLAYER";
     inline static const std::string DISABLE_ANCHOR = "DISABLE_ANCHOR";
     inline static const std::string ENTRANCE_DISCOVERED = "ENTRANCE_DISCOVERED";
@@ -399,6 +423,19 @@ class Anchor : public Network {
     void SendPacket_UpdateClientState();
     void SendPacket_UpdateDungeonItems();
     void SendPacket_UpdateRoomState();
+    struct CoopModelSource {
+        std::string name; // File name of the mod
+        size_t modelFiles;
+        bool included;
+    };
+    std::vector<CoopModelSource> GetCoopModelSources();
+    void SetCoopModelSourceIncluded(const std::string& name, bool included);
+    const std::string& GetOwnModelId() const {
+        return ownModelId;
+    }
+    void BuildOwnCoopModel();
+    void HandlePacket_ModelRequest(nlohmann::json payload);
+    void HandlePacket_ModelChunk(nlohmann::json payload);
     void UpdateCoopSettings();
     void SendPacket_UpdateTeamState();
 };

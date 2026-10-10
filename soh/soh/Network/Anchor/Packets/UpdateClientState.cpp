@@ -27,6 +27,8 @@ nlohmann::json Anchor::PrepClientState() {
     payload["clientVersion"] = clientVersion;
     payload["teamId"] = CVarGetString(CVAR_REMOTE_ANCHOR("TeamId"), "default");
     payload["online"] = true;
+    payload["modelId"] = ownModelId;
+    payload["modelSize"] = ownModelData != nullptr ? ownModelData->size() : 0;
 
     if (IsSaveLoaded()) {
         payload["seed"] = GetOwnSeed();
@@ -67,6 +69,9 @@ void Anchor::HandlePacket_UpdateClientState(nlohmann::json payload) {
         clients[clientId].teamId = client.teamId;
         clients[clientId].online = client.online;
         clients[clientId].seed = client.seed;
+        clients[clientId].modelId = client.modelId;
+        clients[clientId].modelSize = client.modelSize;
+        OnCoopClientModel(clientId);
         clients[clientId].isSaveLoaded = client.isSaveLoaded;
         clients[clientId].isGameComplete = client.isGameComplete;
         clients[clientId].sceneNum = client.sceneNum;

@@ -167,6 +167,33 @@ void AnchorMainMenu(WidgetInfo& info) {
 
     ImGui::Spacing();
 
+    // Which of our mods make up the Link model teammates see us with (see CoopModels.cpp)
+    if (ImGui::CollapsingHeader("Your Link Model")) {
+        auto sources = anchor->GetCoopModelSources();
+        if (sources.empty()) {
+            ImGui::TextWrapped("None of your enabled mods change Link, teammates see you as vanilla Link.");
+        } else {
+            ImGui::TextWrapped("Teammates see you with the Link model of these mods:");
+            for (auto& source : sources) {
+                bool included = source.included;
+                if (UIWidgets::Checkbox(fmt::format("{} ({} files)", source.name, source.modelFiles).c_str(), &included,
+                                        UIWidgets::CheckboxOptions().Color(THEME_COLOR))) {
+                    anchor->SetCoopModelSourceIncluded(source.name, included);
+                }
+            }
+        }
+        ImGui::Text("Model: %s", anchor->GetOwnModelId().empty() ? "vanilla" : anchor->GetOwnModelId().c_str());
+
+        static const char* downloadModes[] = { "Ask", "Always", "Never" };
+        UIWidgets::CVarCombobox("Download Teammates' Models:", CVAR_REMOTE_ANCHOR("Model.Download"), downloadModes,
+                                UIWidgets::ComboboxOptions()
+                                    .DefaultIndex(0)
+                                    .LabelPosition(UIWidgets::LabelPositions::Above)
+                                    .Color(THEME_COLOR));
+    }
+
+    ImGui::Spacing();
+
     if (!SohGui::mAnchorRoomWindow->IsVisible()) {
         SohGui::mAnchorRoomWindow->DrawElement();
     }

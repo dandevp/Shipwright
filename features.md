@@ -154,8 +154,14 @@ enemies between teammates, so they can play through the same areas together.
   ...) while you keep yours, and with vanilla Link when they have none, never with your model.
 - A model is everything under `objects/object_link_boy*` and `objects/object_link_child*`, tunic specific skeletons and
   display lists included. Parts a model doesn't replace are vanilla.
-- Until models are sent between players, one can be tried out on all dummy players with the
-  `gRemote.Anchor.Developer.PuppetModelTestPath` CVar (the path of a model `.o2r`).
+- Your model is the Link files of your enabled mods. Under Network > Anchor > Your Link Model you pick which of your
+  mods teammates see you with (your own Link still follows the mod menu).
+- Models are sent between teammates through the Anchor server: a teammate who doesn't have yours yet is asked whether
+  to download it (or downloads it always / never, a setting under Your Link Model). It's sent a little every frame and
+  checked against its id before it's used, then kept in the `anchor-models` folder, so each model is only sent once.
+  Models over 64 MB aren't sent.
+- A model can be tried out locally on all dummy players with the `gRemote.Anchor.Developer.PuppetModelTestPath` CVar
+  (the path of a model `.o2r`).
 
 ## Known limitations
 
@@ -173,6 +179,8 @@ enemies between teammates, so they can play through the same areas together.
 - Between different seeds, Boss Souls follow each player's own seed: without its soul a boss doesn't appear in your
   game at all, so you can't join that fight. How mirroring copes with a teammate who has no boss while others do is
   untested.
+- Sending models needs the Anchor server to keep `modelId` and `modelSize` in the client state it passes on, to relay
+  `MODEL_REQUEST` and `MODEL_CHUNK` like other packets, and to accept messages of about 50 KB.
 - The room owner's enemy settings need the Anchor server to pass the whole room state on to the other players
   (`coopSettings` and `coopEnemySeed` next to `coopSync`).
 - Every other enemy type only shares its health and death, and runs its own AI for each player. Among them:

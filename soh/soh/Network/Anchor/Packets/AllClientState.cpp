@@ -49,6 +49,9 @@ void Anchor::HandlePacket_AllClientState(nlohmann::json payload) {
         clients[client.clientId].teamId = client.teamId;
         clients[client.clientId].online = client.online;
         clients[client.clientId].seed = client.seed;
+        clients[client.clientId].modelId = client.modelId;
+        clients[client.clientId].modelSize = client.modelSize;
+        OnCoopClientModel(client.clientId);
         clients[client.clientId].isSaveLoaded = client.isSaveLoaded;
         clients[client.clientId].isGameComplete = client.isGameComplete;
         clients[client.clientId].sceneNum = client.sceneNum;

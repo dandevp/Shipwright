@@ -58,6 +58,8 @@ inline void from_json(const json& j, AnchorClient& client) {
     client.teamId = j.value("teamId", "default");
     client.online = j.value("online", false);
     client.seed = j.value("seed", (u32)0);
+    client.modelId = j.value("modelId", "");
+    client.modelSize = j.value("modelSize", (u32)0);
     client.isSaveLoaded = j.value("isSaveLoaded", false);
     client.isGameComplete = j.value("isGameComplete", false);
     client.sceneNum = j.value("sceneNum", (s16)SCENE_ID_MAX);

@@ -117,6 +117,11 @@ void Anchor::RegisterHooks() {
         FlushCoopPendingDrops();
         FlushCoopPendingProjectiles();
         SendCoopEnemySnapshots();
+        SendCoopModelChunks();
+        if (ownModelNeedsBuilding) {
+            ownModelNeedsBuilding = false;
+            BuildOwnCoopModel();
+        }
     });
 
     COND_HOOK(OnPlayDrawEnd, isConnected, [&]() {
