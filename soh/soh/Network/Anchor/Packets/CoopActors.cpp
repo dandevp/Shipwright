@@ -6,6 +6,7 @@
 #include "soh/Network/Anchor/JsonConversions.hpp"
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "soh/ObjectExtension/ActorListIndex.h"
+#include "soh/Enhancements/randomizer/randomizerTypes.h"
 
 extern "C" {
 #include "macros.h"
@@ -59,6 +60,12 @@ void ObjTsubo_Idle(ObjTsubo* objTsubo, PlayState* play);
  * grass circle you walk up to) stay destroyed, and so it can tell a teammate entering the room what is already gone.
  * Like in vanilla, everything comes back once the room is reloaded with nobody else in it.
  */
+
+uint8_t ObjTsubo_RandomizerHoldsItem(ObjTsubo* potActor, PlayState* play);
+uint8_t ObjKibako_RandomizerHoldsItem(ObjKibako* smallCrateActor, PlayState* play);
+uint8_t ObjKibako2_RandomizerHoldsItem(ObjKibako2* crateActor, PlayState* play);
+uint8_t EnKusa_RandomizerHoldsItem(EnKusa* grassActor, PlayState* play);
+uint8_t Rock_RandomizerHoldsItem(CheckIdentity rockIdentity, PlayState* play, bool isBoulder);
 
 struct CoopDropId {
     uint64_t id;
@@ -258,6 +265,31 @@ static void KillCoopEnemy(Actor* actor) {
     EffectSsDeadDb_Spawn(gPlayState, &actor->world.pos, &zeroVec, &zeroVec, 100, 0, 255, 255, 255, 255, 0, 0, 255, 1, 9,
                          true);
     Actor_Kill(actor);
+}
+
+// Whether the actor still holds a randomizer check in our seed (a shuffled pot, crate, grass or rock). A teammate on
+// another seed breaking theirs must not take it away from us.
+static bool HoldsCheckForUs(Actor* actor) {
+    if (!IS_RANDO) {
+        return false;
+    }
+
+    switch (actor->id) {
+        case ACTOR_OBJ_TSUBO:
+            return ObjTsubo_RandomizerHoldsItem((ObjTsubo*)actor, gPlayState);
+        case ACTOR_OBJ_KIBAKO:
+            return ObjKibako_RandomizerHoldsItem((ObjKibako*)actor, gPlayState);
+        case ACTOR_OBJ_KIBAKO2:
+            return ObjKibako2_RandomizerHoldsItem((ObjKibako2*)actor, gPlayState);
+        case ACTOR_EN_KUSA:
+            return EnKusa_RandomizerHoldsItem((EnKusa*)actor, gPlayState);
+        case ACTOR_EN_ISHI: {
+            const CheckIdentity* identity = ObjectExtension::GetInstance().Get<CheckIdentity>(actor);
+            return identity != nullptr && Rock_RandomizerHoldsItem(*identity, gPlayState, actor->params & 1);
+        }
+        default:
+            return false;
+    }
 }
 
 // Plays the actor's own break effects and removes it, without rolling a drop (the teammate who broke it shares theirs)
@@ -502,13 +534,18 @@ nlohmann::json Anchor::PrepCoopDestroyedActors(s8 roomNum) {
     return destroyed;
 }
 
-void Anchor::ApplyCoopDestroyedActors(nlohmann::json& destroyed) {
+void Anchor::ApplyCoopDestroyedActors(nlohmann::json& destroyed, bool fromSameSeed) {
     for (auto& entry : destroyed) {
         CoopActorIdentity identity = entry.get<CoopActorIdentity>();
+        Actor* actor = FindCoopActor(identity);
+
+        // From another seed, only what we can tell doesn't hold a check of ours (it may not have spawned yet)
+        if (!fromSameSeed && (actor == nullptr || HoldsCheckForUs(actor))) {
+            continue;
+        }
         coopDestroyedActors[identity] = gPlayState->roomCtx.curRoom.num;
 
         // Already gone before we got here, so remove it without any effects
-        Actor* actor = FindCoopActor(identity);
         if (actor != nullptr && (actor->category == ACTORCAT_ENEMY || !Actor_HasParent(actor, gPlayState))) {
             Actor_Kill(actor);
         }
@@ -569,8 +606,13 @@ void Anchor::HandlePacket_CoopActorDestroyed(nlohmann::json payload) {
     }
 
     CoopActorIdentity identity = payload.at("actor").get<CoopActorIdentity>();
+    bool fromSameSeed = IsFromSameSeedPeer(payload);
 
     Actor* actor = FindCoopActor(identity);
+    // A teammate on another seed breaks only what doesn't hold a check of ours, and only what we can see is there
+    if (!fromSameSeed && (actor == nullptr || HoldsCheckForUs(actor))) {
+        return;
+    }
     if (actor != nullptr) {
         if (StaysDestroyed(actor)) {
             coopDestroyedActors[identity] = roomNum;
@@ -627,7 +669,7 @@ void Anchor::SetCoopEnemyHealth(const CoopActorIdentity& identity, s32 health) {
 }
 
 void Anchor::SendPacket_CoopItemDrop(EnItem00* item, uint64_t dropId) {
-    std::vector<uint32_t> peers = GetCoopPeers(false);
+    std::vector<uint32_t> peers = GetCoopPeers(false, true);
     if (peers.empty()) {
         return;
     }
@@ -649,7 +691,9 @@ void Anchor::SendPacket_CoopItemDrop(EnItem00* item, uint64_t dropId) {
 }
 
 void Anchor::HandlePacket_CoopItemDrop(nlohmann::json payload) {
-    if (!IsCoopPayloadForThisScene(payload) || !IsRoomLoaded(payload.at("roomNum").get<s8>())) {
+    // Drops are loot, which stays within a seed
+    if (!IsCoopPayloadForThisScene(payload) || !IsFromSameSeedPeer(payload) ||
+        !IsRoomLoaded(payload.at("roomNum").get<s8>())) {
         return;
     }
 
@@ -674,7 +718,7 @@ void Anchor::HandlePacket_CoopItemDrop(nlohmann::json payload) {
 }
 
 void Anchor::SendPacket_CoopItemCollected(uint64_t dropId) {
-    std::vector<uint32_t> peers = GetCoopPeers(false);
+    std::vector<uint32_t> peers = GetCoopPeers(false, true);
     if (peers.empty()) {
         return;
     }
@@ -689,7 +733,7 @@ void Anchor::SendPacket_CoopItemCollected(uint64_t dropId) {
 }
 
 void Anchor::HandlePacket_CoopItemCollected(nlohmann::json payload) {
-    if (!IsCoopPayloadForThisScene(payload)) {
+    if (!IsCoopPayloadForThisScene(payload) || !IsFromSameSeedPeer(payload)) {
         return;
     }
 
@@ -836,6 +880,10 @@ bool Anchor::UpdateCoopCarriedByTeammate(Actor* actor) {
             if (!object.isPlaced || object.actorId != actor->id || !IsCoopPeer(client)) {
                 continue;
             }
+            // Ours stays put if it holds a check of ours, since breaking theirs won't break it
+            if (!IsSameSeedPeer(client) && HoldsCheckForUs(actor)) {
+                continue;
+            }
 
             if (!hasIdentity) {
                 identity = GetCoopActorIdentity(actor);
@@ -936,8 +984,9 @@ void Anchor::UpdateCoopCarriedCopies() {
 // sword and shield. When a teammate in our scene makes progress, the NPCs around us are respawned so they catch up
 // right away instead of when we come back.
 void Anchor::OnCoopTeammateFlagSet(uint32_t clientId, s16 flagType) {
+    // Story progress only means the same thing in the same seed
     if (flagType == FLAG_EVENT_CHECK_INF && IsCoopSyncActive() && clients.contains(clientId) &&
-        IsCoopPeer(clients[clientId])) {
+        IsSameSeedPeer(clients[clientId])) {
         coopNpcRefreshPending = true;
     }
 }

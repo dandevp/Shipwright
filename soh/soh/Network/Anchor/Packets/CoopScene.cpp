@@ -69,7 +69,9 @@ void Anchor::SendPacket_CoopSceneFlag(u8 coopFlagType, s16 flag, bool set) {
         return;
     }
 
-    std::vector<uint32_t> peers = GetCoopPeers(IsRoomScopedFlag(coopFlagType, flag));
+    // Temp collectibles are loot, which stays within a seed
+    std::vector<uint32_t> peers =
+        GetCoopPeers(IsRoomScopedFlag(coopFlagType, flag), coopFlagType == COOP_FLAG_COLLECTIBLE);
     if (peers.empty()) {
         return;
     }
@@ -127,8 +129,9 @@ void Anchor::HandlePacket_CoopSceneFlag(nlohmann::json payload) {
             }
             break;
         case COOP_FLAG_COLLECTIBLE:
-            // Only temp collectibles; permanent ones (heart pieces, keys, ...) belong to whoever picks them up
-            if (flag >= 0x20) {
+            // Only temp collectibles; permanent ones (heart pieces, keys, ...) belong to whoever picks them up. Temp
+            // collectibles are loot too, so they're only shared within a seed.
+            if (flag >= 0x20 && IsFromSameSeedPeer(payload)) {
                 SetLiveFlagBit(&flags->collect, &flags->tempCollect, flag, set);
             }
             break;
@@ -189,7 +192,10 @@ void Anchor::HandlePacket_CoopSceneSync(nlohmann::json payload) {
     // Permanent progress is merged, temporary state is taken over from the teammate who was already here
     flags->swch |= payload.at("swch").get<u32>();
     flags->clear |= payload.at("clear").get<u32>();
-    flags->tempCollect |= payload.at("tempCollect").get<u32>();
+    bool fromSameSeed = IsFromSameSeedPeer(payload);
+    if (fromSameSeed) {
+        flags->tempCollect |= payload.at("tempCollect").get<u32>();
+    }
 
     u32 tempSwch = payload.at("tempSwch").get<u32>();
     if (sameRoom) {
@@ -200,7 +206,7 @@ void Anchor::HandlePacket_CoopSceneSync(nlohmann::json payload) {
     }
 
     if (payload.contains("destroyed")) {
-        ApplyCoopDestroyedActors(payload["destroyed"]);
+        ApplyCoopDestroyedActors(payload["destroyed"], fromSameSeed);
     }
     if (sameRoom && payload.contains("blocks")) {
         ApplyCoopMovedBlocks(payload["blocks"]);

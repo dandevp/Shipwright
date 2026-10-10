@@ -5,7 +5,8 @@ enemies between teammates, so they can play through the same areas together.
 
 ## Requirements
 
-- Only players on the same team, with the same game version and the same randomizer seed, sync with each other.
+- Only players on the same team, with the same game version, sync with each other. They may play different seeds
+  (see "Playing different seeds").
 - They sync with each other while in the same scene. Vanilla and Master Quest dungeons are kept apart.
 - Story progress (NPCs reacting to it) needs "Sync Items and Flags" on as well.
 - While an Archipelago slot is connected, "Sync Items and Flags" is greyed out (Archipelago moves the items),
@@ -134,6 +135,19 @@ enemies between teammates, so they can play through the same areas together.
 - Changes apply to rooms as they load: enemies already spawned keep their type and size. Hyper Enemies and Hyper Bosses
   switch right away.
 
+### Playing different seeds
+
+- Teammates can each play their own world: a vanilla file, a randomizer seed or an Archipelago slot (players on the
+  same slot are one world). Between different worlds, everything that doesn't touch either world's loot is shared:
+  - enemies and bosses (mirroring, health, deaths), boss rewards and blue warps stay each player's own
+  - grass, pots, crates and rocks breaking, but only those that don't hold a check in your seed: a shuffled pot of
+    yours stays until you break it yourself, and doesn't follow a teammate who carries their copy of it
+  - pushed blocks, turned statues, lit torches, moving platforms, carried objects
+  - switch and clear flags, boss fights in progress
+- Kept within a world: drops and who picked them up, temporary collectibles, and NPCs reacting to story progress.
+- The room window marks teammates on a different seed. It only warns when "Sync Items and Flags" is on, which needs
+  the same seed.
+
 ## Known limitations
 
 ### General
@@ -145,6 +159,11 @@ enemies between teammates, so they can play through the same areas together.
 
 ### Enemies
 
+- Between different seeds, a breakable you haven't loaded yet when a teammate breaks theirs stays whole for you, since
+  there's no telling yet whether it holds one of your checks.
+- Between different seeds, Boss Souls follow each player's own seed: without its soul a boss doesn't appear in your
+  game at all, so you can't join that fight. How mirroring copes with a teammate who has no boss while others do is
+  untested.
 - The room owner's enemy settings need the Anchor server to pass the whole room state on to the other players
   (`coopSettings` and `coopEnemySeed` next to `coopSync`).
 - Every other enemy type only shares its health and death, and runs its own AI for each player. Among them:

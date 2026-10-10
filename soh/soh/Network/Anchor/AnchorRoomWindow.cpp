@@ -112,14 +112,22 @@ void AnchorRoomWindow::DrawElement() {
                     ImGui::EndTooltip();
                 }
             }
-            uint32_t seed = IS_RANDO ? Rando::Context::GetInstance()->GetSeed() : 0;
+            uint32_t seed = Anchor::Instance->GetOwnSeed();
             if (client.isSaveLoaded && Anchor::Instance->IsSaveLoaded() && client.seed != seed && client.online &&
                 !client.self) {
+                // Item and flag sync assumes the same seed. Co-op Sync works across seeds, sharing what doesn't touch
+                // either seed's loot.
+                bool breaksSync = Anchor::Instance->roomState.syncItemsAndFlags;
                 ImGui::SameLine();
-                ImGui::TextColored(ImVec4(1, 0, 0, 1), ICON_FA_EXCLAMATION_TRIANGLE);
+                ImGui::TextColored(breaksSync ? ImVec4(1, 0, 0, 1) : ImVec4(1, 1, 0, 1),
+                                   breaksSync ? ICON_FA_EXCLAMATION_TRIANGLE : ICON_FA_INFO_CIRCLE);
                 if (ImGui::IsItemHovered()) {
                     ImGui::BeginTooltip();
-                    ImGui::Text("Seed mismatch! Continuing will break things!");
+                    if (breaksSync) {
+                        ImGui::Text("Seed mismatch! Syncing items and flags will break things!");
+                    } else {
+                        ImGui::Text("Different seed: Co-op Sync shares enemies, puzzles and switches, not loot.");
+                    }
                     ImGui::Text("Yours: %u", seed);
                     ImGui::Text("Theirs: %u", client.seed);
                     ImGui::EndTooltip();

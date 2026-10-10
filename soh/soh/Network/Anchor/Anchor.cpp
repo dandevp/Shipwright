@@ -5,6 +5,7 @@
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "soh/OTRGlobals.h"
+#include "soh/util.h"
 #include "soh/Enhancements/randomizer/SeedContext.h"
 
 extern "C" {
@@ -303,7 +304,13 @@ bool Anchor::IsSaveLoaded() {
     return true;
 }
 
+// Tells our world apart from other players': the randomizer seed, the Archipelago slot (players on the same slot share
+// a world), or 0 for vanilla
 uint32_t Anchor::GetOwnSeed() {
+    if (IS_ARCHIPELAGO) {
+        return SohUtils::Hash(std::string(gSaveContext.ship.quest.data.archipelago.roomHash) + "/" +
+                              gSaveContext.ship.quest.data.archipelago.slotName);
+    }
     return IS_RANDO ? Rando::Context::GetInstance()->GetSeed() : 0;
 }
 
@@ -311,14 +318,27 @@ bool Anchor::IsCoopSyncActive() {
     return isConnected && roomState.coopSync && IsSaveLoaded();
 }
 
-// A co-op peer is a teammate playing the same game (version, seed) in the same scene as us
+// A co-op peer is a teammate playing the same game version in the same scene as us. Their seed may differ from ours,
+// then only what doesn't touch either seed's loot is shared (see IsSameSeedPeer).
 bool Anchor::IsCoopPeer(const AnchorClient& client) {
     return !client.self && client.online && client.isSaveLoaded && client.clientVersion == clientVersion &&
-           client.teamId == CVarGetString(CVAR_REMOTE_ANCHOR("TeamId"), "default") && client.seed == GetOwnSeed() &&
+           client.teamId == CVarGetString(CVAR_REMOTE_ANCHOR("TeamId"), "default") &&
            client.sceneNum == gPlayState->sceneNum;
 }
 
-std::vector<uint32_t> Anchor::GetCoopPeers(bool sameRoomOnly) {
+// A teammate playing the very same world as us, with whom the loot (drops, collectibles) is shared too
+bool Anchor::IsSameSeedPeer(const AnchorClient& client) {
+    return IsCoopPeer(client) && client.seed == GetOwnSeed();
+}
+
+// Whether a co-op packet comes from a teammate playing the same world as us. Teammates on other seeds don't send us
+// their loot, this keeps it that way with older clients too.
+bool Anchor::IsFromSameSeedPeer(nlohmann::json& payload) {
+    uint32_t clientId = payload.value("clientId", (uint32_t)0);
+    return clients.contains(clientId) && clients[clientId].seed == GetOwnSeed();
+}
+
+std::vector<uint32_t> Anchor::GetCoopPeers(bool sameRoomOnly, bool sameSeedOnly) {
     std::vector<uint32_t> peers;
 
     if (!IsCoopSyncActive()) {
@@ -326,7 +346,8 @@ std::vector<uint32_t> Anchor::GetCoopPeers(bool sameRoomOnly) {
     }
 
     for (auto& [clientId, client] : clients) {
-        if (IsCoopPeer(client) && (!sameRoomOnly || client.curRoomNum == gPlayState->roomCtx.curRoom.num)) {
+        if ((sameSeedOnly ? IsSameSeedPeer(client) : IsCoopPeer(client)) &&
+            (!sameRoomOnly || client.curRoomNum == gPlayState->roomCtx.curRoom.num)) {
             peers.push_back(clientId);
         }
     }

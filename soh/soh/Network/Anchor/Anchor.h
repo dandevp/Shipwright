@@ -200,9 +200,10 @@ class Anchor : public Network {
     void RegisterHooks();
     void RefreshClientActors();
     void SetDummyPlayerClientId(const Actor* actor, uint32_t clientId);
-    uint32_t GetOwnSeed();
     bool IsCoopPeer(const AnchorClient& client);
-    std::vector<uint32_t> GetCoopPeers(bool sameRoomOnly);
+    bool IsSameSeedPeer(const AnchorClient& client);
+    bool IsFromSameSeedPeer(nlohmann::json& payload);
+    std::vector<uint32_t> GetCoopPeers(bool sameRoomOnly, bool sameSeedOnly = false);
     nlohmann::json PrepCoopPayload(const std::string& type);
     bool IsCoopPayloadForThisScene(nlohmann::json& payload);
     void OnCoopRoomChanged();
@@ -215,7 +216,7 @@ class Anchor : public Network {
     void FlushCoopPendingDrops();
     bool ShouldCoopActorInit(Actor* actor);
     nlohmann::json PrepCoopDestroyedActors(s8 roomNum);
-    void ApplyCoopDestroyedActors(nlohmann::json& destroyed);
+    void ApplyCoopDestroyedActors(nlohmann::json& destroyed, bool fromSameSeed);
     void UpdateCoopRoomAuthority();
     Actor* SpawnCoopPuppet(const CoopActorIdentity& identity, nlohmann::json& enemy);
     nlohmann::json PrepCoopEnemyHealth(s8 roomNum);
@@ -347,6 +348,7 @@ class Anchor : public Network {
     inline static const std::string UPDATE_TEAM_STATE = "UPDATE_TEAM_STATE";
 
     static Anchor* Instance;
+    uint32_t GetOwnSeed();
     std::map<uint32_t, AnchorClient> clients;
     RoomState roomState;
 
