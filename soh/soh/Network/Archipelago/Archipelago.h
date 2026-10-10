@@ -6,6 +6,7 @@
 #include <nlohmann/json.hpp>
 #include <queue>
 #include <map>
+#include <atomic>
 #include "ArchipelagoTypes.h"
 
 // Forward declaration
@@ -18,7 +19,7 @@ static constexpr int MAX_PASSWORD_LENGTH = 32;
 
 static constexpr char const* AP_GAME_NAME = "Ship of Harkinian";
 static constexpr char const* AP_WORLD_VERSION_MAJOR = "1";
-static constexpr char const* AP_WORLD_VERSION_MINOR = "3";
+static constexpr char const* AP_WORLD_VERSION_MINOR = "4";
 static constexpr int MAX_RETRIES = 3;
 } // namespace AP_Client_consts
 
@@ -42,11 +43,19 @@ class ArchipelagoClient {
         int64_t playerId;
     };
 
+    struct ApHintFetchData {
+        bool fetching = false;
+        std::vector<std::string> hint_group_games;
+        size_t request_index;
+        size_t num_requests;
+    };
+
     static ArchipelagoClient& GetInstance();
 
     bool StartClient();
     bool StopClient();
 
+    void RequestInitData();
     void GameLoaded();
     void StartLocationScouts();
     void SynchItems();
@@ -65,6 +74,7 @@ class ArchipelagoClient {
     void OnItemGiven(uint32_t rc, GetItemEntry gi, uint8_t isGiSkipped);
     void SendDeathLink();
     void SendDamageLink(int16_t amount);
+    void SendTrapLink();
     void SetTags();
     RandomizerGet GetIceTrapItem();
     std::string GetApItemName(int64_t ApItemId);
@@ -89,7 +99,7 @@ class ArchipelagoClient {
     void Poll();
     void ResetQueue();
 
-    void OnSceneInit(uint16_t sceneNum);
+    void AfterSceneCommands(uint16_t sceneNum);
     void SetDataStorage(const std::string& key, const nlohmann::json& value) const;
 
     void OpenLocalHint(RandomizerCheck sohCheckId);
@@ -99,11 +109,22 @@ class ArchipelagoClient {
     void OnShopSlotChangeHook(uint8_t cursorIndex);
 
     bool slotMatch(const std::string& slotName, const std::string& roomHash);
+    void newInitDataReceived();
+    size_t GetFetchingGroupMax() const {
+        return fetchingGroups.fetching ? fetchingGroups.num_requests : 0;
+    };
+    size_t GetFetchingGroupCurrent() const {
+        return fetchingGroups.fetching ? fetchingGroups.request_index : 0;
+    };
+
+    static std::string SanitizeName(const std::string& name);
 
     std::unique_ptr<APClient> apClient;
     bool itemQueued;
     bool disconnecting;
     uint64_t lastDeathLink = 0;
+    uint64_t lastDamageLink = 0;
+    uint8_t trapLinkCount = 0;
     int retries;
     std::string uri;
     std::string password;
@@ -128,12 +149,14 @@ class ArchipelagoClient {
     static std::shared_ptr<ArchipelagoClient> instance;
     static bool initialized;
 
-    bool gameWon;
-
     nlohmann::json slotData;
     std::set<int64_t> locations;
     std::vector<ApItem> scoutedItems;
     std::queue<ApItem> receiveQueue;
+    ApHintFetchData fetchingGroups;
+
+    bool locationsScouted;
+    bool hintsInitialized;
 };
 
 void LoadArchipelagoData();
@@ -143,6 +166,11 @@ extern "C" {
 #endif // END __cplusplus
 void Archipelago_InitSaveFile();
 void Archipelago_InitConnection();
+void Archipelago_RequestInitData();
+void SetArchipelagoParsing(uint8_t state);
+uint8_t IsArchipelagoParsing();
+size_t Archipelago_FetchHintMax();
+size_t Archipelago_FetchHintCurrent();
 #ifdef __cplusplus
 }
 #endif

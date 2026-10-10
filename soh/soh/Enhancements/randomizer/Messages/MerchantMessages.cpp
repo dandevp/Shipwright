@@ -50,7 +50,7 @@ void BuildMerchantMessage(CustomMessage& msg, RandomizerCheck rc, bool mysteriou
         }
         itemName = CustomMessage(trickName);
         color = "%g";
-    } else if (rgid == RG_ARCHIPELAGO_ITEM_PROGRESSIVE || rgid == RG_ARCHIPELAGO_ITEM_USEFUL ||
+    } else if (rgid == RG_ARCHIPELAGO_ITEM_PROGRESSION || rgid == RG_ARCHIPELAGO_ITEM_USEFUL ||
                rgid == RG_ARCHIPELAGO_ITEM_JUNK) {
         itemName = ArchipelagoClient::GetInstance().GetApItemHint(rc, rgid);
     } else if (inShop) {

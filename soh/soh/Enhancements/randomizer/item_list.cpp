@@ -516,8 +516,8 @@ void Rando::StaticData::InitItemTable() {
     itemTable[RG_ARCHIPELAGO_ITEM_USEFUL].SetCustomDrawFunc(Randomizer_DrawArchipelagoItem);
     itemTable[RG_ARCHIPELAGO_ITEM_JUNK] =               Item(RG_ARCHIPELAGO_ITEM_JUNK,            Text{"Junk AP Item", "Junk AP Item", "Junk AP Item"},                                                                          ITEMTYPE_EVENT,             GI_RUPEE_GREEN,       false, LOGIC_NONE,                         RHT_ARCHIPELAGO_ITEM_JUNK,                   RG_ARCHIPELAGO_ITEM_JUNK,             OBJECT_GI_LETTER,       GID_LETTER_ZELDA,     TEXT_RANDOMIZER_CUSTOM_ITEM, 0x80, CHEST_ANIM_SHORT, ITEM_CATEGORY_JUNK,   MOD_RANDOMIZER);
     itemTable[RG_ARCHIPELAGO_ITEM_JUNK].SetCustomDrawFunc(Randomizer_DrawArchipelagoItem);
-    itemTable[RG_ARCHIPELAGO_ITEM_PROGRESSIVE] =        Item(RG_ARCHIPELAGO_ITEM_PROGRESSIVE,     Text{"Progressive AP Item", "Progressive AP Item", "Progressive AP Item"},                                                     ITEMTYPE_EVENT,             GI_RUPEE_GREEN,       false, LOGIC_NONE,                         RHT_ARCHIPELAGO_ITEM_PROGRESSIVE,            RG_ARCHIPELAGO_ITEM_PROGRESSIVE,      OBJECT_GI_LETTER,       GID_LETTER_ZELDA,     TEXT_RANDOMIZER_CUSTOM_ITEM, 0x80, CHEST_ANIM_LONG,  ITEM_CATEGORY_MAJOR,  MOD_RANDOMIZER);
-    itemTable[RG_ARCHIPELAGO_ITEM_PROGRESSIVE].SetCustomDrawFunc(Randomizer_DrawArchipelagoItem);
+    itemTable[RG_ARCHIPELAGO_ITEM_PROGRESSION] =        Item(RG_ARCHIPELAGO_ITEM_PROGRESSION,     Text{"Progression AP Item", "Progression AP Item", "Progression AP Item"},                                                     ITEMTYPE_EVENT,             GI_RUPEE_GREEN,       false, LOGIC_NONE,                         RHT_ARCHIPELAGO_ITEM_PROGRESSION,            RG_ARCHIPELAGO_ITEM_PROGRESSION,      OBJECT_GI_LETTER,       GID_LETTER_ZELDA,     TEXT_RANDOMIZER_CUSTOM_ITEM, 0x80, CHEST_ANIM_LONG,  ITEM_CATEGORY_MAJOR,  MOD_RANDOMIZER);
+    itemTable[RG_ARCHIPELAGO_ITEM_PROGRESSION].SetCustomDrawFunc(Randomizer_DrawArchipelagoItem);
 
     // clang-format on
 

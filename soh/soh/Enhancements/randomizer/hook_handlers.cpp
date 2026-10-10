@@ -467,6 +467,11 @@ void RandomizerOnExternalCheckHandler(uint32_t randomizerCheck) {
             // Do nothing
             break;
     }
+
+    if (rc == RC_MARKET_10_BIG_POES) {
+        Flags_SetInfTable(INFTABLE_SPOKE_TO_POE_COLLECTOR_IN_RUINED_MARKET);
+        HIGH_SCORE(HS_POE_POINTS) = 1000;
+    }
 }
 
 static Vec3f spawnPos = { 0.0f, -999.0f, 0.0f };
@@ -1455,7 +1460,7 @@ void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_l
                     std::string message;
                     std::string itemName;
 
-                    if (!(item00->itemEntry.getItemId == RG_ARCHIPELAGO_ITEM_PROGRESSIVE ||
+                    if (!(item00->itemEntry.getItemId == RG_ARCHIPELAGO_ITEM_PROGRESSION ||
                           item00->itemEntry.getItemId == RG_ARCHIPELAGO_ITEM_USEFUL ||
                           item00->itemEntry.getItemId == RG_ARCHIPELAGO_ITEM_JUNK)) {
 
@@ -2856,7 +2861,6 @@ void RandomizerOnPlayerUpdateHandler() {
             gSaveContext.ship.stats.itemTimestamp[TIMESTAMP_TRIFORCE_COMPLETED] =
                 static_cast<u32>(GAMEPLAYSTAT_TOTAL_TIME);
             gSaveContext.ship.stats.gameComplete = 1;
-            ArchipelagoClient::GetInstance().SendGameWon();
             Play_PerformSave(gPlayState);
             Notification::Emit({ .message = "Game autosaved" });
             gPlayState->nextEntranceIndex = ENTR_CHAMBER_OF_THE_SAGES_0;

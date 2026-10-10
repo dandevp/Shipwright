@@ -152,7 +152,7 @@ void BuildSkulltulaPeopleMessage(uint16_t* textId, bool* loadFromMessageTable) {
                                       "et j'aurai quelque chose à te donner! [[color]]([[1]])%w");
     CustomMessage itemName = item.GetHint().GetHintMessage();
     RandomizerGet rg = item.GetRandomizerGet();
-    if (rg == RG_ARCHIPELAGO_ITEM_PROGRESSIVE || rg == RG_ARCHIPELAGO_ITEM_USEFUL || rg == RG_ARCHIPELAGO_ITEM_JUNK) {
+    if (rg == RG_ARCHIPELAGO_ITEM_PROGRESSION || rg == RG_ARCHIPELAGO_ITEM_USEFUL || rg == RG_ARCHIPELAGO_ITEM_JUNK) {
         itemName = CustomMessage(ArchipelagoClient::GetInstance().GetApItemHint(rc, rg));
     }
     msg.InsertNumber(count);
@@ -176,7 +176,7 @@ void Build100SkullsHintMessage(uint16_t* textId, bool* loadFromMessageTable) {
         Rando::StaticData::RetrieveItem(RAND_GET_ITEM_LOC(RC_KAK_100_GOLD_SKULLTULA_REWARD)->GetPlacedRandomizerGet());
     RandomizerGet rg = item.GetRandomizerGet();
     CustomMessage itemName = item.GetHint().GetHintMessage();
-    if (rg == RG_ARCHIPELAGO_ITEM_PROGRESSIVE || rg == RG_ARCHIPELAGO_ITEM_USEFUL || rg == RG_ARCHIPELAGO_ITEM_JUNK) {
+    if (rg == RG_ARCHIPELAGO_ITEM_PROGRESSION || rg == RG_ARCHIPELAGO_ITEM_USEFUL || rg == RG_ARCHIPELAGO_ITEM_JUNK) {
         itemName = CustomMessage(ArchipelagoClient::GetInstance().GetApItemHint(RC_KAK_100_GOLD_SKULLTULA_REWARD, rg));
     }
     msg.Replace("[[color]]", item.GetColor());

@@ -258,6 +258,7 @@ typedef struct ShipBossRushSaveContextData {
 } ShipBossRushSaveContextData;
 
 typedef struct ArchipelagoLocationData {
+    u32 itemFlags;
     char itemName[50];
     char hintName[50];
     char playerName[17];

@@ -72,4 +72,5 @@ RandomizerHintTextKey GetRandomJunkHint();
 extern void CreateAllHints();
 extern void CreateWarpSongTexts();
 void CreateStaticHints();
+void CreateStoneHints();
 RandomizerHintTextKey GetRandomJunkHint();

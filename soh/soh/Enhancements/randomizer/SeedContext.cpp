@@ -391,6 +391,17 @@ GetItemEntry Context::GetArchipelagoGIEntry() {
 
     Item& item = StaticData::RetrieveItem(itemId);
     GetItemEntry itemEntry = item.GetGIEntry_Copy();
+
+    if (itemEntry.modIndex == MOD_RANDOMIZER && itemEntry.getItemId == RG_ICE_TRAP) {
+        RandomizerGet iceTrapItem = ArchipelagoClient::GetInstance().GetIceTrapItem();
+        const auto fakeGiEntry = StaticData::RetrieveItem(iceTrapItem).GetGIEntry();
+        itemEntry.gid = fakeGiEntry->gid;
+        itemEntry.gi = fakeGiEntry->gi;
+        itemEntry.drawItemId = fakeGiEntry->drawItemId;
+        itemEntry.drawModIndex = fakeGiEntry->drawModIndex;
+        itemEntry.drawFunc = fakeGiEntry->drawFunc;
+    }
+
     mAPreceiveQueue.pop();
     return itemEntry;
 }
@@ -457,6 +468,9 @@ void Context::ParseArchipelago() {
 
     Rando::Settings::GetInstance()->ResetExcludedLocations();
     ArchipelagoClient& apClient = ArchipelagoClient::GetInstance();
+    // Seed the RNG from the Archipelago seed up front so everything downstream is deterministic.
+    SetSeed(apClient.GetSlotData()["archipelago_seed"]);
+    Random_Init(GetSeed());
     ParseArchipelagoItemsLocations(apClient.GetScoutedItems());
     ParseArchipelagoOptions();
     ParseArchipelagoTricks();
@@ -499,11 +513,31 @@ void Context::ParseItemLocationsJson(const nlohmann::json& spoilerFileJson) {
 }
 
 void Context::ParseArchipelagoOptions() {
+
+    // Set all options to their default before parsing them from Archipelago. This gives us
+    // a thin layer of future proofing for when Ship adds new settings down the line.
+    const auto ctx = Rando::Context::GetInstance();
+    auto& optionGroups = Rando::Settings::GetInstance()->GetOptionGroups();
+    for (size_t i = 0; i < RSG_MAX; i++) {
+        auto& optionGroup = optionGroups[i];
+        // don't go through non-menus
+        if (optionGroup.GetContainsType() == Rando::OptionGroupType::SUBGROUP) {
+            continue;
+        }
+
+        for (Rando::Option* option : optionGroup.GetOptions()) {
+            RandomizerSettingKey key = option->GetKey();
+            if (option->GetCategory() == Rando::OptionCategory::Setting && key < RSK_MAX) {
+                ctx->GetOption(key).Set(option->GetMenuOptionDefault());
+            }
+        }
+    }
+
     // Set options to what Archipelago expects. Need to slowly convert these to options in apworld and
     // load those in instead.
-
     nlohmann::json slotData = ArchipelagoClient::GetInstance().GetSlotData();
-    mOptions[RSK_NO_LOGIC].Set(RO_GENERIC_NO);
+    // A toggle, like our No Logic
+    mOptions[RSK_NO_LOGIC].Set(slotData.value("no_logic", 0) ? RO_GENERIC_YES : RO_GENERIC_NO);
     mOptions[RSK_FOREST].Set(slotData["closed_forest"]);
     mOptions[RSK_DOOR_OF_TIME].Set(slotData["door_of_time"]);
     mOptions[RSK_ZORAS_FOUNTAIN].Set(slotData["zoras_fountain"]);
@@ -554,11 +588,11 @@ void Context::ParseArchipelagoOptions() {
     }
 
     mOptions[RSK_MEDALLION_LOCKED_TRIALS].Set(slotData["medallion_locked_trials"]);
-    if (slotData["ocarina_of_time"] == 0) {
+    if (slotData["start_with_ocarina"] == 0) {
         mOptions[RSK_STARTING_OCARINA].Set(RO_STARTING_OCARINA_OFF);
-    } else if (slotData["ocarina_of_time"] == 1) {
+    } else if (slotData["start_with_ocarina"] == 1) {
         mOptions[RSK_STARTING_OCARINA].Set(RO_STARTING_OCARINA_FAIRY);
-    } else if (slotData["ocarina_of_time"] == 2) {
+    } else if (slotData["start_with_ocarina"] == 2) {
         mOptions[RSK_STARTING_OCARINA].Set(RO_STARTING_OCARINA_TIME);
     }
     mOptions[RSK_SHUFFLE_OCARINA].Set(slotData["shuffle_ocarinas"]);
@@ -660,7 +694,7 @@ void Context::ParseArchipelagoOptions() {
     mOptions[RSK_BASE_ICE_TRAPS].Set(0);
     mOptions[RSK_ADDITIONAL_ICE_TRAPS].Set(0);
     mOptions[RSK_ICE_TRAP_PERCENT].Set(0);
-    mOptions[RSK_GOSSIP_STONE_HINTS].Set(RO_GOSSIP_STONES_NONE);
+    mOptions[RSK_GOSSIP_STONE_HINTS].Set(slotData["gossip_stone_hints"]);
     mOptions[RSK_TOT_ALTAR_HINT].Set(slotData["tot_altar_hint"]);
     mOptions[RSK_GANONDORF_HINT].Set(slotData["ganondorf_hint"]);
     mOptions[RSK_SHEIK_LA_HINT].Set(slotData["sheik_la_hint"]);
@@ -685,7 +719,7 @@ void Context::ParseArchipelagoOptions() {
     mOptions[RSK_CHICKENS_HINT].Set(slotData["chicken_hint"]);
     mOptions[RSK_MALON_HINT].Set(slotData["malon_hint"]);
     mOptions[RSK_HBA_HINT].Set(slotData["horseback_archery_hint"]);
-    mOptions[RSK_WARP_SONG_HINTS].Set(slotData["warp_song_hint"]);
+    mOptions[RSK_WARP_SONG_HINTS].Set(RO_GENERIC_OFF); // Todo Implement when
     mOptions[RSK_SCRUB_TEXT_HINT].Set(slotData["scrub_hints"]);
     mOptions[RSK_MERCHANT_TEXT_HINT].Set(slotData["merchant_hints"]);
     mOptions[RSK_FISHING_POLE_HINT].Set(slotData["fishing_pole_hint"]);
@@ -696,7 +730,7 @@ void Context::ParseArchipelagoOptions() {
     } else if (slotData["hint_clarity"] == 2) {
         mOptions[RSK_HINT_CLARITY].Set(RO_HINT_CLARITY_CLEAR);
     }
-    mOptions[RSK_HINT_DISTRIBUTION].Set(0);
+    mOptions[RSK_HINT_DISTRIBUTION].Set(RO_HINT_DIST_ARCHIPELAGO);
     if (slotData["maps_and_compasses"] == 0) {
         mOptions[RSK_SHUFFLE_MAPANDCOMPASS].Set(RO_DUNGEON_ITEM_LOC_STARTWITH);
     } else if (slotData["maps_and_compasses"] == 1) {
@@ -932,7 +966,6 @@ void Context::ParseArchipelagoOptions() {
     mOptions[RSK_LOCK_OVERWORLD_DOORS].Set(slotData["lock_overworld_doors"]);
     mOptions[RSK_SHUFFLE_GRASS].Set(slotData["shuffle_grass"]);
     mOptions[RSK_ROCS_FEATHER].Set(slotData["rocs_feather"]);
-    SetSeed(slotData["archipelago_seed"]);
 }
 
 void Context::ParseArchipelagoTricks() {
@@ -970,6 +1003,9 @@ void Context::ParseArchipelagoItemsLocations(const std::vector<ArchipelagoClient
     const int Slot = ArchipelagoClient::GetInstance().GetSlot();
     nlohmann::json slotData = ArchipelagoClient::GetInstance().GetSlotData();
 
+    allLocations.clear();
+    overworldLocations.clear();
+
     // Zero out the location table first
     for (int rc = 1; rc < RC_MAX; rc++) {
         itemLocationTable[rc].SetPlacedItem(RG_NONE);
@@ -981,6 +1017,10 @@ void Context::ParseArchipelagoItemsLocations(const std::vector<ArchipelagoClient
 
     for (const ArchipelagoClient::ApItem& ap_item : scouted_items) {
         const RandomizerCheck rc = StaticData::locationNameToEnum[ap_item.locationName];
+
+        AddLocation(rc);
+        const auto ctx = Rando::Context::GetInstance();
+        ctx->GetItemLocation(rc)->SetAsHintable();
 
         if (Slot == ap_item.playerNumber) {
             // Our item
@@ -1000,7 +1040,7 @@ void Context::ParseArchipelagoItemsLocations(const std::vector<ArchipelagoClient
             // Other player item
             // If progressive or trap bit flag is set, make item progressive.
             if (ap_item.flags & (1 << 0) || ap_item.flags & (1 << 2)) {
-                itemLocationTable[rc].SetPlacedItem(RG_ARCHIPELAGO_ITEM_PROGRESSIVE);
+                itemLocationTable[rc].SetPlacedItem(RG_ARCHIPELAGO_ITEM_PROGRESSION);
                 // If useful bit flag is on, make item useful.
             } else if (ap_item.flags & (1 << 1)) {
                 itemLocationTable[rc].SetPlacedItem(RG_ARCHIPELAGO_ITEM_USEFUL);
@@ -1030,7 +1070,11 @@ void Context::ParseArchipelagoItemsLocations(const std::vector<ArchipelagoClient
         itemLocationTable[rc].SetCustomPrice(price);
     }
 }
+
 void Context::ParseArchipelagoHints() {
+    // Clear the hint state left over from a previous save-file creation.
+    HintReset();
+
     const auto& ApHintData = ArchipelagoClient::GetInstance().foreignHints;
     const auto ctx = Rando::Context::GetInstance();
     for (const auto& ApHint : ApHintData) {
@@ -1071,6 +1115,7 @@ void Context::ParseArchipelagoHints() {
         AddHint(hintKey, hint);
     }
     CreateStaticHints();
+    CreateStoneHints();
 }
 
 void Context::WriteHintJson(nlohmann::ordered_json& spoilerFileJson) {

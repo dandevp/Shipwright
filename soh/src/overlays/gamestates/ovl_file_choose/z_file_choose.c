@@ -898,7 +898,8 @@ void FileChoose_UpdateArchipelagoMenu(GameState* thisx) {
     FileChooseContext* this = (FileChooseContext*)thisx;
     Input* input = &this->state.input[0];
     bool isConnecting = CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatusInGame"), 0) == 1;
-    bool isConnected = CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatus"), 0) == 4;
+    s32 connectionStatus = CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatus"), 0);
+    bool isConnected = connectionStatus >= 3;
 
     FileChoose_UpdateListMenuAnim(&this->archipelagoUIAlpha, &this->archipelagoArrowOffset);
     FileChoose_MoveListCursor(this, &this->archipelagoIndex, NULL, ASM_CHANGE_CONNECTION_INFO + 1, 0);
@@ -929,10 +930,16 @@ void FileChoose_UpdateArchipelagoMenu(GameState* thisx) {
             return;
         }
 
+        // Wait until we have all the data we need to create a save (4 while it loads, 5 once it's in)
+        if (connectionStatus != 5) {
+            if (connectionStatus != 4) {
+                Archipelago_RequestInitData();
+                CVarSetInteger(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatusInGame"), 1);
+            }
+            return;
+        }
+
         CVarSetInteger(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatusInGame"), 0);
-        // Reset Fade Status before getting in game
-        CVarSetInteger(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatusFadeStarted"), 0);
-        CVarSetInteger(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatusFadeCount"), 255);
 
         SohFileSelect_ShowPresetModal();
         Audio_PlaySfxGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
@@ -1752,12 +1759,13 @@ void FileChoose_DrawFileInfo(GameState* thisx, s16 fileIndex, s16 isActive) {
                     break;
                 case 1: // Connecting
                 case 2: // Connection error, retrying
-                case 3: // Connected
+                case 4: // Loading data for new save file
                     Interface_DrawTextLine(this->state.gfxCtx,
                                            SohFileSelect_GetArchipelagoSettingText(ASM_CONNECTING, language), statusPos,
                                            133, 185, 185, 185, textAlpha, 0.8f, true);
                     break;
-                case 4: // Connected + Locations Scouted
+                case 3: // Connected
+                case 5: // Data Loaded
                     if (connectedToThisSlot) {
                         Interface_DrawTextLine(this->state.gfxCtx,
                                                SohFileSelect_GetArchipelagoSettingText(ASM_CONNECTED, language),
@@ -1891,7 +1899,7 @@ static void FileChoose_DrawArchipelagoMenuWindowContents(FileChooseContext* this
         }
 
         // If mid connection attempt, make Start Archipelago text gray.
-        if (index == ASM_START_ARCHIPELAGO && CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatus"), 0) != 4 &&
+        if (index == ASM_START_ARCHIPELAGO && CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatus"), 0) != 5 &&
             CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatusInGame"), 0) == 1) {
             textColorR = textColorG = textColorB = 100;
             textLine = ASM_CONNECT_AND_START_ARCHIPELAGO;
@@ -1927,15 +1935,30 @@ static void FileChoose_DrawArchipelagoMenuWindowContents(FileChooseContext* this
             break;
         case 1: // Connecting
         case 2: // Connection error, retrying
-        case 3: // Connected
             Interface_DrawTextLine(this->state.gfxCtx,
                                    SohFileSelect_GetArchipelagoSettingText(ASM_CONNECTING, language), statusPos,
                                    175, 185, 185, 185, textAlpha, 0.8f, true);
             break;
-        case 4: // Connected + Locations Scouted
+        case 3: // Connected
             Interface_DrawTextLine(this->state.gfxCtx,
                                    SohFileSelect_GetArchipelagoSettingText(ASM_CONNECTED, language), statusPos, 175,
                                    120, 255, 120, textAlpha, 0.8f, true);
+            break;
+        case 4: { // Loading the slot's data, in batches
+            int offset = Interface_DrawTextLine(this->state.gfxCtx,
+                                                SohFileSelect_GetArchipelagoSettingText(ASM_LOADING_DATA, language),
+                                                statusPos, 175, 185, 185, 185, textAlpha, 0.8f, true);
+            char progress[24];
+            snprintf(progress, sizeof(progress), "(%zu/%zu)", Archipelago_FetchHintCurrent(),
+                     Archipelago_FetchHintMax());
+            Interface_DrawTextLine(this->state.gfxCtx, progress, statusPos + offset, 175, 185, 185, 185, textAlpha,
+                                   0.8f, true);
+            break;
+        }
+        case 5: // Data loaded
+            Interface_DrawTextLine(this->state.gfxCtx,
+                                   SohFileSelect_GetArchipelagoSettingText(ASM_DATA_LOADED, language), statusPos,
+                                   175, 120, 255, 120, textAlpha, 0.8f, true);
             break;
     }
 

@@ -190,7 +190,7 @@ void BuildArchipelagoItemMessage(int16_t randomizerGet, uint32_t randomizerCheck
                         "You found [[apcolor]][[apitem]]%w for %r[[applayer]]%w!",
                         "You found [[apcolor]][[apitem]]%w for %r[[applayer]]%w!");
     std::string itemColor = "";
-    if (randomizerGet == RG_ARCHIPELAGO_ITEM_PROGRESSIVE) {
+    if (randomizerGet == RG_ARCHIPELAGO_ITEM_PROGRESSION) {
         itemColor = "%p";
     } else if (randomizerGet == RG_ARCHIPELAGO_ITEM_USEFUL) {
         itemColor = "%b";
@@ -272,7 +272,7 @@ void BuildItemMessage(u16* textId, bool* loadFromMessageTable) {
         BuildTriforceMessage(msg);
     } else if (player->getItemEntry.getItemId == RG_ARCHIPELAGO_ITEM_USEFUL ||
                player->getItemEntry.getItemId == RG_ARCHIPELAGO_ITEM_JUNK ||
-               player->getItemEntry.getItemId == RG_ARCHIPELAGO_ITEM_PROGRESSIVE) {
+               player->getItemEntry.getItemId == RG_ARCHIPELAGO_ITEM_PROGRESSION) {
         BuildArchipelagoItemMessage(player->getItemEntry.getItemId, RandomizerReturnCurrentlyQueuedItem(), msg);
     } else {
         BuildCustomItemMessage(player, msg);

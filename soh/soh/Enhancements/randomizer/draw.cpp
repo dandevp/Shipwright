@@ -1334,7 +1334,7 @@ extern "C" void Randomizer_DrawArchipelagoItem(PlayState* play, GetItemEntry* ge
     if (true /*ArchipelagoItemMatchesContents==true*/) {
         if (getItemEntry->getItemId == RG_ARCHIPELAGO_ITEM_JUNK) {
             archipelagoItemDL = (Gfx*)gArchipelagoJunkDL;
-        } else if (getItemEntry->getItemId == RG_ARCHIPELAGO_ITEM_PROGRESSIVE) {
+        } else if (getItemEntry->getItemId == RG_ARCHIPELAGO_ITEM_PROGRESSION) {
             archipelagoItemDL = (Gfx*)gArchipelagoProgressiveDL;
         }
     }

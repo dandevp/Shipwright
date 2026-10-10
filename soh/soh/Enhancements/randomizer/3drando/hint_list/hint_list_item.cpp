@@ -2178,9 +2178,9 @@ void StaticData::HintTable_Init_Item() {
                                     CustomMessage("a useful archipelago item", "Todo: German", "Todo: French")
                                     }, {
                                     CustomMessage("an item from another world", "Todo: German", "Todo: French")});
-    hintTextTable[RHT_ARCHIPELAGO_ITEM_PROGRESSIVE] = HintText(CustomMessage("a progressive archipelago item", "Todo", "Todo"),
+    hintTextTable[RHT_ARCHIPELAGO_ITEM_PROGRESSION] = HintText(CustomMessage("a progression archipelago item", "Todo", "Todo"),
                                     {
-                                    CustomMessage("a progressive archipelago item", "Todo: German", "Todo: French")
+                                    CustomMessage("a progression archipelago item", "Todo: German", "Todo: French")
                                     }, {
                                     CustomMessage("a great item from another world", "Todo: German", "Todo: French")});
     //What is this used for?

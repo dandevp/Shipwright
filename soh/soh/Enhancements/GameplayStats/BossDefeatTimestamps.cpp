@@ -1,6 +1,5 @@
 #include "soh/Enhancements/game-interactor/GameInteractor.h"
 #include "soh/ShipInit.hpp"
-#include "soh/Network/Archipelago/Archipelago.h"
 
 extern "C" {
 #include "z64save.h"
@@ -25,7 +24,6 @@ static void RegisterBossDefeatTimestamps() {
     COND_ID_HOOK(OnBossDefeat, ACTOR_BOSS_GANON2, true, [](void* refActor) {
         gSaveContext.ship.stats.itemTimestamp[TIMESTAMP_DEFEAT_GANON] = static_cast<u32>(GAMEPLAYSTAT_TOTAL_TIME);
         gSaveContext.ship.stats.gameComplete = true;
-        ArchipelagoClient::GetInstance().SendGameWon();
     });
 }
 
