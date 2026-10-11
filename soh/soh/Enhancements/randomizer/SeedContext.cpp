@@ -10,6 +10,7 @@
 #include "fishsanity.h"
 #include "macros.h"
 #include "3drando/hints.hpp"
+#include "location_access.h"
 #include "soh/util.h"
 #include "../kaleido.h"
 #include "soh/Network/Archipelago/Archipelago.h"
@@ -475,6 +476,9 @@ void Context::ParseArchipelago() {
     ParseArchipelagoOptions();
     ParseArchipelagoTricks();
     ParseArchipelagoExcludedLocations();
+    // The stone hints search the world graph for reachable gossip stones. Seed generation and loading a save set it up,
+    // but neither may have happened yet when a new Archipelago file is the first thing after starting the game.
+    RegionTable_Init();
     ParseArchipelagoHints();
 }
 
