@@ -235,12 +235,24 @@ jobs:
         VCPKG_ROOT: ${{github.workspace}}/vcpkg
       run: |
         set $env:PATH="$env:USERPROFILE/.cargo/bin;$env:PATH"
-        cmake -S . -B build-windows -G Ninja -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DBUILD_REMOTE_CONTROL=1
-        cmake --build build-windows --config Release --parallel 10
+        # The output also goes to build.log, for the step below that shows the errors
+        cmake -S . -B build-windows -G Ninja -DCMAKE_MAKE_PROGRAM=ninja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DBUILD_REMOTE_CONTROL=1 2>&1 | Tee-Object -FilePath build.log
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        cmake --build build-windows --config Release --parallel 10 2>&1 | Tee-Object -FilePath build.log -Append
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
         (cd build-windows && cpack)
         cd ..
         mv _packages/*.zip _packages/soh-windows.zip
+    - name: Show build errors
+      # Job logs need admin rights to download, annotations don't: the errors are readable without logging in
+      if: failure()
+      run: |
+        if (Test-Path build.log) {
+          Select-String -Path build.log -Pattern '(fatal )?error [A-Z]+[0-9]+|CMake Error|ninja: build stopped|FAILED:' |
+            Select-Object -First 40 |
+            ForEach-Object { Write-Output "::error::$($_.Line.Trim())" }
+        }
     - name: Unzip package
       run: Expand-Archive -Path _packages/soh-windows.zip -DestinationPath soh-windows
     - name: Upload build
