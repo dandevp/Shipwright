@@ -2494,9 +2494,9 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
         ForEachColliderElement(collider, [&](ColliderInfo* info, Vec3s* pos) {
             if (offsetIndex < puppet->colliderOffsets.size()) {
                 Vec3f& offset = puppet->colliderOffsets[offsetIndex];
-                pos->x = actor->world.pos.x + offset.x;
-                pos->y = actor->world.pos.y + offset.y;
-                pos->z = actor->world.pos.z + offset.z;
+                pos->x = (s16)(actor->world.pos.x + offset.x);
+                pos->y = (s16)(actor->world.pos.y + offset.y);
+                pos->z = (s16)(actor->world.pos.z + offset.z);
             }
             offsetIndex++;
         });

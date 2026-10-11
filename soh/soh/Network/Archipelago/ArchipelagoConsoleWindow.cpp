@@ -48,8 +48,8 @@ void ArchipelagoConsoleWindow::DrawElement() {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(0.0f, 1.0f));
 
     UIWidgets::ButtonOptions sendButtonOptions = UIWidgets::ButtonOptions().Color(THEME_COLOR).Size(ImVec2(0.0, 0.0));
-    int chatbarHeight = ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.x + sendButtonOptions.padding.y +
-                        5.0f * 2.0f; // FrameBorderSize * 2
+    int chatbarHeight = (int)(ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.x +
+                              sendButtonOptions.padding.y + 5.0f * 2.0f); // FrameBorderSize * 2
 
     uint8_t isWindowOpen = CVarGetInteger("gOpenWindows.ArchipelagoConsoleWindow", 0);
 

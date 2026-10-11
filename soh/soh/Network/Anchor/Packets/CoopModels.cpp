@@ -457,7 +457,7 @@ void Anchor::OnCoopClientModel(uint32_t clientId) {
     // Ask, once per model
     coopModelsDeclined.insert(modelId);
     std::string question = fmt::format("{} uses their own Link model ({:.1f} MB). Download it to see them with it?",
-                                       client.name, client.modelSize / (1024.0f * 1024.0f));
+                                       client.name, (float)client.modelSize / (1024.0f * 1024.0f));
     auto modal = std::static_pointer_cast<SohModalWindow>(
         Ship::Context::GetRawInstance()->GetWindow()->GetGui()->GetGuiWindow("Modal Window"));
     modal->RegisterPopup(

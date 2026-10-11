@@ -501,7 +501,6 @@ void RandomizerOnPlayerUpdateForRCQueueHandler() {
         getItemEntry = Rando::Context::GetInstance()->GetArchipelagoGIEntry();
     } else {
         RandomizerGet vanillaRandomizerGet = Rando::StaticData::GetLocation(rc)->GetVanillaItem();
-        GetItemID vanillaItem = (GetItemID)Rando::StaticData::RetrieveItem(vanillaRandomizerGet).GetItemID();
         getItemEntry = Rando::Context::GetInstance()->GetFinalGIEntry(rc, true, (GetItemID)vanillaRandomizerGet, true);
     }
     GetItemCategory getItemCategory = Randomizer_AdjustItemCategory(getItemEntry);
@@ -1111,8 +1110,6 @@ static bool RandoCanTrackSwordless(PlayState* play) {
 void RandomizerOnVanillaBehaviorHandler(GIVanillaBehavior id, bool* should, va_list originalArgs) {
     va_list args;
     va_copy(args, originalArgs);
-
-    u8 test;
 
     switch (id) {
         case VB_CLIMB:

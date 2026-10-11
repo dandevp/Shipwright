@@ -24,7 +24,7 @@ void ArchipelagoHintWindow::DrawElement() {
     ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 0.0f);
 
     UIWidgets::ButtonOptions sendButtonOptions = UIWidgets::ButtonOptions().Color(THEME_COLOR).Size(ImVec2(0.0, 0.0));
-    int hintInputHeight = ImGui::GetTextLineHeightWithSpacing() * 2;
+    int hintInputHeight = (int)(ImGui::GetTextLineHeightWithSpacing() * 2);
 
     static ImGuiTableFlags flags = ImGuiTableFlags_Resizable | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti |
                                    ImGuiTableFlags_SortTristate | ImGuiTableFlags_RowBg |
@@ -106,11 +106,11 @@ void ArchipelagoHintWindow::DrawElement() {
     // https://github.com/ocornut/imgui/issues/718 has some more exotic methods of achieving this
     // But something like this might be slated for a future version of ImGui and this is good enough for now
     ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0, 0.0, 0.0, 0.0));
-    ImGui::BeginChild("HintBoxLeft", ImVec2(-hintInputHeight * 3.5, isWindowOpen ? 0.0f : 50.0f));
+    ImGui::BeginChild("HintBoxLeft", ImVec2(-hintInputHeight * 3.5f, isWindowOpen ? 0.0f : 50.0f));
     ImGui::PopStyleColor();
 
-    int chatbarHeight = ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.x + sendButtonOptions.padding.y +
-                        5.0f * 2.0f; // FrameBorderSize * 2
+    int chatbarHeight = (int)(ImGui::GetTextLineHeight() + ImGui::GetStyle().ItemSpacing.x +
+                              sendButtonOptions.padding.y + 5.0f * 2.0f); // FrameBorderSize * 2
     float chatBarPadding = (ImGui::GetWindowHeight() - chatbarHeight) / 2.0f;
     if (chatBarPadding > 0.0f) {
         ImGui::Dummy(ImVec2(0.0f, chatBarPadding));
@@ -118,7 +118,7 @@ void ArchipelagoHintWindow::DrawElement() {
 
     PushStyleInput(THEME_COLOR);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(10.0f, 8.0f));
-    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 3.0);
+    ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 3.0f);
     if (ImGui::BeginCombo("##HintCombo", "New Hint", 0)) {
         if (ImGui::IsWindowAppearing()) {
             ImGui::SetKeyboardFocusHere();
@@ -129,12 +129,12 @@ void ArchipelagoHintWindow::DrawElement() {
         auto hintView = std::string_view(textEntryBuf);
         const std::unordered_set<int64_t> suggestions = suggestionTrie.GetSuggestions(hintView);
         std::vector<std::string> SuggestedItems;
-        for (int ApItemId : suggestions) {
+        for (int64_t ApItemId : suggestions) {
             SuggestedItems.emplace_back(ArchipelagoClient::GetInstance().GetApItemName(ApItemId));
         }
         std::sort(SuggestedItems.begin(), SuggestedItems.end());
 
-        for (int i = 0; i < SuggestedItems.size(); i++) {
+        for (int i = 0; i < (int)SuggestedItems.size(); i++) {
             ImGui::PushID(i);
             std::string SuggestedItem = SuggestedItems[i];
             if (ImGui::Selectable(SuggestedItem.c_str())) {
@@ -244,11 +244,11 @@ void ArchipelagoHintWindow::addStatusCombo(const AP_Hint::Hint& hint) {
 
     // set up combo box style
     ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0, 0.0, 0.0, 0.0));
-    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0, 1.0, 1.0, 0.1));
+    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
     ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0, 0.0, 0.0, 0.0));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0, 1.0, 1.0, 0.1));
-    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(1.0, 1.0, 1.0, 0.1));
-    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(1.0, 1.0, 1.0, 0.2));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
+    ImGui::PushStyleColor(ImGuiCol_Header, ImVec4(1.0f, 1.0f, 1.0f, 0.1f));
+    ImGui::PushStyleColor(ImGuiCol_HeaderHovered, ImVec4(1.0f, 1.0f, 1.0f, 0.2f));
 
     if (ImGui::BeginCombo("", AP_Hint::statusStrings[hint.hint_status].c_str(), 0)) {
         for (const AP_Hint::HintStatus status : drop_down_statuses) {
@@ -256,7 +256,8 @@ void ArchipelagoHintWindow::addStatusCombo(const AP_Hint::Hint& hint) {
             const bool is_selected = hint.hint_status == status;
             if (ImGui::Selectable(AP_Hint::statusStrings[status].c_str(), is_selected)) {
                 // update hint status
-                ArchipelagoClient::GetInstance().UpdateHintStatus(hint.finding_player_id, hint.location_id, status);
+                ArchipelagoClient::GetInstance().UpdateHintStatus(hint.finding_player_id, (int)hint.location_id,
+                                                                  status);
             }
 
             if (is_selected)

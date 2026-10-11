@@ -1081,7 +1081,7 @@ void Context::ParseArchipelagoHints() {
         const RandomizerHint hintKey = ApHint.first;
         const StaticHintInfo hintInfo = StaticData::staticHintInfoMap[ApHint.first];
         std::vector<RandomizerArea> areas;
-        for (const ArchipelagoClient::ApForeignHint& hintData : ApHint.second) {
+        for ([[maybe_unused]] const ArchipelagoClient::ApForeignHint& hintData : ApHint.second) {
             areas.emplace_back(RA_ARCHIPELAGO_FOREIGN);
         }
         if (areas.empty()) {

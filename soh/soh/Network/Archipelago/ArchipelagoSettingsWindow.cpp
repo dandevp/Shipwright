@@ -40,11 +40,11 @@ void ArchipelagoSettingsWindow::DrawElement() {
 
     if (!apClient.IsConnected()) {
         if (UIWidgets::Button("Connect", UIWidgets::ButtonOptions().Color(THEME_COLOR).Size(ImVec2(0.0, 0.0)))) {
-            bool success = apClient.StartClient();
+            apClient.StartClient();
         }
     } else {
         if (UIWidgets::Button("Disconnect", UIWidgets::ButtonOptions().Color(THEME_COLOR).Size(ImVec2(0.0, 0.0)))) {
-            bool success = apClient.StopClient();
+            apClient.StopClient();
         }
     }
 

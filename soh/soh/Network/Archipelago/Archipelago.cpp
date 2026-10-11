@@ -364,7 +364,7 @@ bool ArchipelagoClient::StartClient() {
                         if (receivedDamage >= 20) {
                             Player* player = GET_PLAYER(gPlayState);
                             // 80 received points is one full heart aka 16 health.
-                            gSaveContext.health -= floor(receivedDamage / 5);
+                            gSaveContext.health -= (s16)floor(receivedDamage / 5);
 
                             // Only use hit animations when the player is able to process it.
                             if (!(GameInteractor::IsGameplayPaused() || player->stateFlags2 & PLAYER_STATE2_CRAWLING ||
@@ -603,8 +603,8 @@ void ArchipelagoClient::InitForeignHints() {
             ApForeignHint foreignHint;
             foreignHint.playerId = hintLocation[0];
             foreignHint.locationId = hintLocation[1];
-            foreignHint.playerName = apClient->get_player_alias(foreignHint.playerId);
-            const std::string& game = apClient->get_player_game(foreignHint.playerId);
+            foreignHint.playerName = apClient->get_player_alias((int)foreignHint.playerId);
+            const std::string& game = apClient->get_player_game((int)foreignHint.playerId);
             foreignHint.locationName = apClient->get_location_name(foreignHint.locationId, game);
             foreignHint.groupName = get_random_group_from_location(foreignHint.locationName, game);
             foreignLocations.push_back(foreignHint);
@@ -973,7 +973,7 @@ void ArchipelagoClient::OpenForeignHint(RandomizerHint randomizerHintId) {
             foreignHint.locationName == Rando::StaticData::GetLocation(RC_LINKS_POCKET)->GetName()) {
             continue;
         }
-        apClient->CreateHints({ foreignHint.locationId }, foreignHint.playerId);
+        apClient->CreateHints({ foreignHint.locationId }, (int)foreignHint.playerId);
     }
 }
 
@@ -987,8 +987,6 @@ void ArchipelagoClient::OnDialogCloseHook() {
     MessageContext* msgCtx = &(gPlayState->msgCtx);
     Actor* actor = msgCtx->talkActor;
     std::shared_ptr<Rando::Context> rndCtx = Rando::Context::GetInstance();
-    std::vector<ApForeignHint>* hintList = nullptr;
-    RandomizerHint rh = RH_NONE;
     switch (msgCtx->textId) {
         case TEXT_ANJU_PLEASE_BRING_MY_CUCCOS_BACK:
         case TEXT_ANJU_PLEASE_BRING_4_CUCCOS:
