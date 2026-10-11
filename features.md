@@ -127,6 +127,10 @@ enemies between teammates, so they can play through the same areas together.
 - A teammate's bomb blows up in your game when it does in theirs. It is only the look and sound: its effects happen in
   their game and reach you through the rest of the sync.
 - Copies of a teammate's bombs don't count towards your own bomb limit.
+- Teammates see what you shoot or throw while it flies: arrows (including magic arrows, without their fire, ice or light
+  effect around them), slingshot seeds, Deku Nuts and the boomerang. Their copies follow yours each frame and can't
+  hit anything; what yours hits happens in your game and reaches them through the rest of the sync. Where a seed or
+  Deku Nut hits, they see and hear it pop, and a Deku Nut's white flash when they're close to it (not its stun).
 
 ### NPCs
 
@@ -231,7 +235,8 @@ enemies between teammates, so they can play through the same areas together.
   trails (Flare Dancer), armor pieces flying off (Iron Knuckle).
 - Some details are approximated on puppets:
   - Stalfos upper body animations
-  - Like-Like's wobble
+  - Like-Like's wobble: puppets wobble, pulse and reach out like the authority's, moving towards the targets it sends
+    every frame by themselves, so the wobble isn't in the exact same phase as the authority's
   - the Moblin's shield, which doesn't block from the front for teammates
 - Enemies that act on the player they target directly (grab, freeze, damage outside of a normal hit) only go after the
   authority's own player:

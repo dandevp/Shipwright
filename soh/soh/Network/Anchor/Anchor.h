@@ -72,6 +72,8 @@ struct CoopCarriedObject {
     s16 params;
     Vec3f pos;
     Vec3s rot;
+    bool isShot;    // Something they shot or threw (arrow, seed, Deku Nut, boomerang), shown until it's gone
+    Vec3s worldRot; // If a shot
 };
 
 // A mod that changes gameplay, by its file name and a hash of its contents
@@ -193,6 +195,7 @@ class Anchor : public Network {
         Actor* actor;
         uint32_t key;
         u16 framesSinceRelease;
+        bool isShot = false;
     };
     std::vector<CoopTrackedCarry> coopCarriedActors; // What our player carries or just threw, shown to teammates
     uint32_t coopNextCarryKey = 0;

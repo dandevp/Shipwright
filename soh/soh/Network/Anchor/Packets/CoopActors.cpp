@@ -14,7 +14,9 @@ extern "C" {
 #include "src/overlays/actors/ovl_Boss_Dodongo/z_boss_dodongo.h"
 #include "src/overlays/actors/ovl_Boss_Mo/z_boss_mo.h"
 #include "src/overlays/actors/ovl_Boss_Va/z_boss_va.h"
+#include "src/overlays/actors/ovl_En_Arrow/z_en_arrow.h"
 #include "src/overlays/actors/ovl_En_Bom/z_en_bom.h"
+#include "src/overlays/actors/ovl_En_Boom/z_en_boom.h"
 #include "src/overlays/actors/ovl_En_Bombf/z_en_bombf.h"
 #include "src/overlays/actors/ovl_En_Ishi/z_en_ishi.h"
 #include "src/overlays/actors/ovl_En_Kusa/z_en_kusa.h"
@@ -23,6 +25,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_Obj_Tsubo/z_obj_tsubo.h"
 extern PlayState* gPlayState;
 extern u8* gBossVaFightPhase;
+void EnArrow_Fly(EnArrow* enArrow, PlayState* play);
 void EnKusa_Main(EnKusa* enKusa, PlayState* play);
 void EnKusa_SetupCut(EnKusa* enKusa);
 void EnKusa_SpawnBugs(EnKusa* enKusa, PlayState* play);
@@ -753,6 +756,8 @@ void Anchor::HandlePacket_CoopItemCollected(nlohmann::json payload) {
 #define CARRIED_FOLLOW_FRAMES 60     // How long a thrown object is followed at most, until it lands or breaks
 #define CARRIED_EXPLOSIVE_FRAMES 400 // Bombs are followed until they blow up
 #define CARRIED_MIN_FLIGHT_FRAMES 3
+#define SHOT_FOLLOW_FRAMES 300 // Shots are followed until they're gone, this is just in case
+#define SHOT_FLASH_DISTANCE 600.0f
 
 struct CoopCarriedCopy {};
 static ObjectExtension::Register<CoopCarriedCopy> CoopCarriedCopyRegister;
@@ -764,6 +769,48 @@ static bool IsCoopExplosive(s16 actorId) {
 static bool IsCoopExploding(s16 actorId, s16 params) {
     return (actorId == ACTOR_EN_BOM && params == BOMB_EXPLOSION) ||
            (actorId == ACTOR_EN_BOMBF && params == BOMBFLOWER_EXPLOSION);
+}
+
+// What our player shot or threw that's in flight: arrows, slingshot seeds, Deku Nuts and the boomerang. Not the ones
+// still in their hand, nor enemies' arrows or our copies of teammates' shots.
+static bool IsOwnCoopShot(Actor* actor) {
+    if (ObjectExtension::GetInstance().Has<CoopCarriedCopy>(actor)) {
+        return false;
+    }
+    if (actor->id == ACTOR_EN_ARROW) {
+        return actor->params >= ARROW_NORMAL_LIT && actor->params <= ARROW_NUT && actor->parent == NULL;
+    }
+    return actor->id == ACTOR_EN_BOOM;
+}
+
+// The look and sound of a seed or Deku Nut hitting something, where a teammate's copy was last. Only the look: the
+// Deku Nut's stun happens in their game.
+static void PlayCoopShotImpact(Actor* copy) {
+    if (copy->id != ACTOR_EN_ARROW || copy->params < ARROW_SEED) {
+        return;
+    }
+
+    EffectSsStone1_Spawn(gPlayState, &copy->world.pos, 0);
+    if (copy->params == ARROW_NUT) {
+        SoundSource_PlaySfxAtFixedWorldPos(gPlayState, &copy->world.pos, 20, NA_SE_IT_DEKU);
+        // The white flash, if it went off close enough to blind us
+        if (Actor_WorldDistXYZToPoint(&GET_PLAYER(gPlayState)->actor, &copy->world.pos) < SHOT_FLASH_DISTANCE) {
+            iREG(50) = -1;
+        }
+    } else {
+        SoundSource_PlaySfxAtFixedWorldPos(gPlayState, &copy->world.pos, 20, NA_SE_IT_SLING_REFLECT);
+    }
+}
+
+// Copies of shots are drawn as if flying, with their own update never running
+static void SetupCoopShotCopy(Actor* copy) {
+    if (copy->id == ACTOR_EN_ARROW) {
+        // Its trail is drawn while flying, and seeds and nuts only while moving
+        ((EnArrow*)copy)->actionFunc = EnArrow_Fly;
+        copy->speedXZ = 1.0f;
+    }
+    // Not a projectile in our game, so enemies that dodge or react to them leave it alone
+    Actor_ChangeCategory(gPlayState, &gPlayState->actorCtx, copy, ACTORCAT_PROP);
 }
 
 // The look and sound of a bomb going off, without any of its effects (those happen in the teammate's game)
@@ -786,7 +833,8 @@ static void PlayCoopExplosion(Vec3f pos) {
 
 // Adds what our player carries to PLAYER_UPDATE, so teammates see it in our hands, flying when we throw it and landing
 // where we put it down. Things placed in the room are their own copy of it, breaking it is shared like any other
-// break. Anything else, like a bomb or a Cucco, gets a copy spawned for them, a bomb until it blows up.
+// break. Anything else, like a bomb or a Cucco, gets a copy spawned for them, a bomb until it blows up. What we shoot
+// is added too, until it's gone.
 void Anchor::AddCoopCarriedObject(nlohmann::json& payload) {
     Player* player = GET_PLAYER(gPlayState);
     if (!IsCoopSyncActive()) {
@@ -799,6 +847,15 @@ void Anchor::AddCoopCarriedObject(nlohmann::json& payload) {
                                              [&](const CoopTrackedCarry& carry) { return carry.actor == heldActor; })) {
         coopCarriedActors.push_back({ heldActor, coopNextCarryKey++, 0 });
     }
+    for (s32 category : { ACTORCAT_ITEMACTION, ACTORCAT_MISC }) {
+        for (Actor* actor = gPlayState->actorCtx.actorLists[category].head; actor != NULL; actor = actor->next) {
+            if (actor->update != NULL && IsOwnCoopShot(actor) &&
+                std::none_of(coopCarriedActors.begin(), coopCarriedActors.end(),
+                             [&](const CoopTrackedCarry& carry) { return carry.actor == actor; })) {
+                coopCarriedActors.push_back({ actor, coopNextCarryKey++, 0, true });
+            }
+        }
+    }
 
     nlohmann::json carried = nlohmann::json::array();
     std::erase_if(coopCarriedActors, [&](CoopTrackedCarry& carry) {
@@ -810,7 +867,9 @@ void Anchor::AddCoopCarriedObject(nlohmann::json& payload) {
         Actor* actor = carry.actor;
         bool isPlaced = GetActorListIndex(actor) >= 0;
         bool isDone = false;
-        if (actor == heldActor) {
+        if (carry.isShot) {
+            isDone = ++carry.framesSinceRelease > SHOT_FOLLOW_FRAMES;
+        } else if (actor == heldActor) {
             carry.framesSinceRelease = 0;
         } else if (IsCoopExplosive(actor->id) && !isPlaced) {
             isDone = ++carry.framesSinceRelease > CARRIED_EXPLOSIVE_FRAMES;
@@ -827,6 +886,10 @@ void Anchor::AddCoopCarriedObject(nlohmann::json& payload) {
         } else {
             entry["actorId"] = actor->id;
             entry["params"] = actor->params;
+        }
+        if (carry.isShot) {
+            entry["shot"] = true;
+            entry["worldRot"] = actor->world.rot;
         }
         carried.push_back(entry);
 
@@ -858,6 +921,10 @@ void Anchor::ReadCoopCarriedObjects(AnchorClient& client, nlohmann::json& payloa
         }
         object.pos = entry.at("pos").get<Vec3f>();
         object.rot = entry.at("rot").get<Vec3s>();
+        object.isShot = entry.value("shot", false);
+        if (object.isShot) {
+            object.worldRot = entry.at("worldRot").get<Vec3s>();
+        }
         client.carriedCoopObjects.push_back(object);
     }
 }
@@ -934,6 +1001,9 @@ void Anchor::UpdateCoopCarriedCopies() {
                     if (copy != nullptr) {
                         ObjectExtension::GetInstance().Set<CoopCarriedCopy>(copy, CoopCarriedCopy{});
                         copy->room = -1;
+                        if (object.isShot) {
+                            SetupCoopShotCopy(copy);
+                        }
                         // Not an explosive in our game, so it doesn't count towards our own bomb limit and enemies
                         // that react to bombs leave it alone
                         if (copy->category == ACTORCAT_EXPLOSIVE) {
@@ -955,6 +1025,12 @@ void Anchor::UpdateCoopCarriedCopies() {
 
                 copy->world.pos = object.pos;
                 copy->shape.rot = object.rot;
+                if (object.isShot) {
+                    copy->world.rot = object.worldRot;
+                    if (copy->id == ACTOR_EN_BOOM) {
+                        ((EnBoom*)copy)->activeTimer++; // It spins
+                    }
+                }
             }
         }
     }
@@ -968,7 +1044,10 @@ void Anchor::UpdateCoopCarriedCopies() {
 
         Actor* copy = entry.second;
         if (copy != nullptr && IsLiveActor(copy)) {
-            if (IsCoopExplosive(copy->id)) {
+            if (copy->id == ACTOR_EN_ARROW || copy->id == ACTOR_EN_BOOM) {
+                PlayCoopShotImpact(copy);
+                Actor_Kill(copy);
+            } else if (IsCoopExplosive(copy->id)) {
                 Actor_Kill(copy);
             } else {
                 ObjectExtension::GetInstance().Remove<CoopCarriedCopy>(copy);
