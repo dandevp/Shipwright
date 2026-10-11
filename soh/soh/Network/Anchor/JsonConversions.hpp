@@ -68,6 +68,7 @@ inline void from_json(const json& j, AnchorClient& client) {
         }
     }
     client.isSaveLoaded = j.value("isSaveLoaded", false);
+    client.isArchipelago = j.value("isArchipelago", false);
     client.isGameComplete = j.value("isGameComplete", false);
     client.sceneNum = j.value("sceneNum", (s16)SCENE_ID_MAX);
     client.curRoomNum = j.value("curRoomNum", (s8)-1);

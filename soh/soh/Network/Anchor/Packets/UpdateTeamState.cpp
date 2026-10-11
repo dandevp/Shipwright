@@ -25,7 +25,7 @@ extern PlayState* gPlayState;
  */
 
 void Anchor::SendPacket_UpdateTeamState() {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 
@@ -119,7 +119,7 @@ void Anchor::SendPacket_ClearTeamState(std::string teamId) {
 }
 
 void Anchor::HandlePacket_UpdateTeamState(nlohmann::json payload) {
-    if (!roomState.syncItemsAndFlags) {
+    if (!IsItemSyncActive()) {
         return;
     }
 

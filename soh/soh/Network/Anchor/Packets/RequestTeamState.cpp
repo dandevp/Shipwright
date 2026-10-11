@@ -15,7 +15,7 @@
  */
 
 void Anchor::SendPacket_RequestTeamState() {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 
@@ -27,7 +27,7 @@ void Anchor::SendPacket_RequestTeamState() {
 }
 
 void Anchor::HandlePacket_RequestTeamState(nlohmann::json payload) {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 

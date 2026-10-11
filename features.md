@@ -10,8 +10,10 @@ enemies between teammates, so they can play through the same areas together.
 - They sync with each other while in the same scene. Vanilla and Master Quest dungeons are kept apart.
 - Their gameplay mods have to match (see "Mods").
 - Story progress (NPCs reacting to it) needs "Sync Items and Flags" on as well.
-- While an Archipelago slot is connected, "Sync Items and Flags" is greyed out (Archipelago moves the items),
-  Co-op Sync stays available.
+- An Archipelago save never syncs items and flags (Archipelago moves the items), whoever owns the room and whether or
+  not its slot is connected: it neither sends nor takes items, checks, flags, entrances or team state. The room's
+  "Sync Items and Flags" still applies to teammates on other saves, and Co-op Sync stays available. Teammates on an
+  Archipelago save aren't marked as breaking item sync in the room window.
 - The Archipelago client is the official 1.4.2 one (jeromkiller/Shipwright_archipellago, tag Client_1.4.2), on the
   Settings page of file select: a new file loads the slot's data first (with its progress shown), then starts. The game
   is reported won when the end credits begin, for both Ganon and Triforce Hunt.

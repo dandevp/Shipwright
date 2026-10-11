@@ -263,7 +263,7 @@ void Anchor::RegisterHooks() {
 
     COND_HOOK(OnFlagSet, isConnected, [&](s16 flagType, s16 flag) {
         if (flagType == FLAG_EVENT_CHECK_INF && flag >= EVENTCHKINF_BEGAN_GOHMA_BATTLE &&
-            flag <= EVENTCHKINF_BEGAN_GANONDORF_BATTLE && !roomState.syncItemsAndFlags) {
+            flag <= EVENTCHKINF_BEGAN_GANONDORF_BATTLE && !IsItemSyncActive()) {
             SendPacket_CoopSceneFlag(COOP_FLAG_BOSS_BATTLE, flag, true);
         }
     });

@@ -319,6 +319,12 @@ uint32_t Anchor::GetOwnSeed() {
     return IS_RANDO ? Rando::Context::GetInstance()->GetSeed() : 0;
 }
 
+// Items and flags are synced when the room says so, except into or out of an Archipelago save: its items come from the
+// multiworld server, and its checks are its own slot's.
+bool Anchor::IsItemSyncActive() {
+    return roomState.syncItemsAndFlags && !IS_ARCHIPELAGO;
+}
+
 bool Anchor::IsCoopSyncActive() {
     return isConnected && roomState.coopSync && IsSaveLoaded();
 }

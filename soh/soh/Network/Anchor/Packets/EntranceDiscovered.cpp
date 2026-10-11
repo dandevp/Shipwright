@@ -8,7 +8,7 @@
  */
 
 void Anchor::SendPacket_EntranceDiscovered(u16 entranceIndex) {
-    if (!IsSaveLoaded() || isProcessingIncomingPacket || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || isProcessingIncomingPacket || !IsItemSyncActive()) {
         return;
     }
 
@@ -22,7 +22,7 @@ void Anchor::SendPacket_EntranceDiscovered(u16 entranceIndex) {
 }
 
 void Anchor::HandlePacket_EntranceDiscovered(nlohmann::json payload) {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 

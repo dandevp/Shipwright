@@ -13,7 +13,7 @@ extern "C" {
  */
 
 void Anchor::SendPacket_UpdateBeansCount() {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 
@@ -28,7 +28,7 @@ void Anchor::SendPacket_UpdateBeansCount() {
 }
 
 void Anchor::HandlePacket_UpdateBeansCount(nlohmann::json payload) {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 

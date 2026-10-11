@@ -7,7 +7,6 @@
 #include "soh/SohGui/SohMenu.h"
 #include "soh/util.h"
 #include "soh/SohGui/UIWidgets.hpp"
-#include "soh/Network/Archipelago/Archipelago.h"
 
 namespace SohGui {
 extern std::shared_ptr<SohMenu> mSohMenu;
@@ -268,16 +267,13 @@ void AnchorAdminMenu(WidgetInfo& info) {
         anchor->SendPacket_UpdateRoomState();
     }
 
-    if (ArchipelagoClient::GetInstance().IsConnected()) { // slot connected
-        ImGui::BeginDisabled();
-    }
-
     if (UIWidgets::CVarCheckbox("Sync Items & Flags", CVAR_REMOTE_ANCHOR("RoomSettings.SyncItemsAndFlags"),
                                 UIWidgets::CheckboxOptions().DefaultValue(true).Color(THEME_COLOR))) {
         anchor->SendPacket_UpdateRoomState();
     }
-    if (ArchipelagoClient::GetInstance().IsConnected()) { // slot connected
-        ImGui::EndDisabled();
+    if (anchor->IsSaveLoaded() && IS_ARCHIPELAGO) {
+        ImGui::TextWrapped("Archipelago saves never sync items and flags: your items come from the Archipelago "
+                           "server. The setting still applies to your teammates' other saves.");
     }
     if (UIWidgets::CVarCheckbox(
             "Co-op Sync (Experimental)", CVAR_REMOTE_ANCHOR("RoomSettings.CoopSync"),

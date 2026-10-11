@@ -18,7 +18,7 @@ extern PlayState* gPlayState;
 uint8_t incomingIceTrapsFromAnchor = 0;
 
 void Anchor::SendPacket_GiveItem(u16 modId, s16 getItemId) {
-    if (!IsSaveLoaded() || isProcessingIncomingPacket || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || isProcessingIncomingPacket || !IsItemSyncActive()) {
         return;
     }
 
@@ -43,7 +43,7 @@ void Anchor::SendPacket_GiveItem(u16 modId, s16 getItemId) {
 }
 
 void Anchor::HandlePacket_GiveItem(nlohmann::json payload) {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 

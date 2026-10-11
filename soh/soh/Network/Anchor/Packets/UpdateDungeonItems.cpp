@@ -14,7 +14,7 @@ extern "C" {
  */
 
 void Anchor::SendPacket_UpdateDungeonItems() {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 
@@ -30,7 +30,7 @@ void Anchor::SendPacket_UpdateDungeonItems() {
 }
 
 void Anchor::HandlePacket_UpdateDungeonItems(nlohmann::json payload) {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 

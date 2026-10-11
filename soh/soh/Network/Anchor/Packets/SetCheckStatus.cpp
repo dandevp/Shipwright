@@ -34,7 +34,7 @@ void Anchor::SendPacket_SetCheckStatus(RandomizerCheck rc) {
 }
 
 void Anchor::HandlePacket_SetCheckStatus(nlohmann::json payload) {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 

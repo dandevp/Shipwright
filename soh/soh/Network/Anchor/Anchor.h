@@ -94,6 +94,7 @@ typedef struct {
     std::string modsHash; // Their gameplay mods, which have to match ours for co-op (see CoopMods.cpp)
     std::vector<CoopModInfo> gameplayMods;
     bool isSaveLoaded;
+    bool isArchipelago; // Playing an Archipelago save, which never syncs items and flags
     bool isGameComplete;
     s16 sceneNum;
     s8 curRoomNum;
@@ -404,6 +405,7 @@ class Anchor : public Network {
     void SendJsonToRemote(nlohmann::json packet);
     bool IsSaveLoaded();
     bool CanTeleportTo(uint32_t clientId);
+    bool IsItemSyncActive();
     bool IsCoopSyncActive();
     bool IsCoopRoomAuthority();
     bool IsOwnBossLeftOut();

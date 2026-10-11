@@ -35,6 +35,7 @@ nlohmann::json Anchor::PrepClientState() {
     if (IsSaveLoaded()) {
         payload["seed"] = GetOwnSeed();
         payload["isSaveLoaded"] = true;
+        payload["isArchipelago"] = IS_ARCHIPELAGO;
         payload["isGameComplete"] = gSaveContext.ship.stats.gameComplete;
         payload["sceneNum"] = gPlayState->sceneNum;
         payload["curRoomNum"] = gPlayState->roomCtx.curRoom.num;
@@ -42,6 +43,7 @@ nlohmann::json Anchor::PrepClientState() {
     } else {
         payload["seed"] = 0;
         payload["isSaveLoaded"] = false;
+        payload["isArchipelago"] = false;
         payload["isGameComplete"] = false;
         payload["sceneNum"] = SCENE_ID_MAX;
         payload["curRoomNum"] = -1;
@@ -78,6 +80,7 @@ void Anchor::HandlePacket_UpdateClientState(nlohmann::json payload) {
         OnCoopClientModel(clientId);
         OnCoopClientMods(clientId);
         clients[clientId].isSaveLoaded = client.isSaveLoaded;
+        clients[clientId].isArchipelago = client.isArchipelago;
         clients[clientId].isGameComplete = client.isGameComplete;
         clients[clientId].sceneNum = client.sceneNum;
         clients[clientId].curRoomNum = client.curRoomNum;

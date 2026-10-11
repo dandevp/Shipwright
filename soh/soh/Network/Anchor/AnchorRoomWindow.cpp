@@ -116,8 +116,8 @@ void AnchorRoomWindow::DrawElement() {
             if (client.isSaveLoaded && Anchor::Instance->IsSaveLoaded() && client.seed != seed && client.online &&
                 !client.self) {
                 // Item and flag sync assumes the same seed. Co-op Sync works across seeds, sharing what doesn't touch
-                // either seed's loot.
-                bool breaksSync = Anchor::Instance->roomState.syncItemsAndFlags;
+                // either seed's loot. Archipelago saves never sync items and flags, on either side.
+                bool breaksSync = Anchor::Instance->IsItemSyncActive() && !client.isArchipelago;
                 ImGui::SameLine();
                 ImGui::TextColored(breaksSync ? ImVec4(1, 0, 0, 1) : ImVec4(1, 1, 0, 1),
                                    breaksSync ? ICON_FA_EXCLAMATION_TRIANGLE : ICON_FA_INFO_CIRCLE);

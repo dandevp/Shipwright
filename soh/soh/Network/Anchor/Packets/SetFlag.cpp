@@ -15,7 +15,7 @@ extern PlayState* gPlayState;
  */
 
 void Anchor::SendPacket_SetFlag(s16 sceneNum, s16 flagType, s16 flag) {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 
@@ -31,7 +31,7 @@ void Anchor::SendPacket_SetFlag(s16 sceneNum, s16 flagType, s16 flag) {
 }
 
 void Anchor::HandlePacket_SetFlag(nlohmann::json payload) {
-    if (!IsSaveLoaded() || !roomState.syncItemsAndFlags) {
+    if (!IsSaveLoaded() || !IsItemSyncActive()) {
         return;
     }
 
