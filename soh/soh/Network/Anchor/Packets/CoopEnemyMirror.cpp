@@ -73,6 +73,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_En_Zf/z_en_zf.h"
 extern PlayState* gPlayState;
 
+void EnRr_UpdateBodySegments(EnRr* rr, PlayState* play);
 void BossDodongo_IntroCutscene(BossDodongo* bossDodongo, PlayState* play);
 void BossDodongo_Walk(BossDodongo* bossDodongo, PlayState* play);
 void BossDodongo_Inhale(BossDodongo* bossDodongo, PlayState* play);
@@ -321,7 +322,7 @@ void EnVali_Lurk(EnVali* enVali, PlayState* play);
  * on also start in the authority's game when a teammate steps on.
  */
 
-#define NO_SKELETON SIZE_MAX // For enemies animated without a skeleton, of which only the position is mirrored
+#define NO_SKELETON SIZE_MAX // For enemies animated without a skeleton (see animatePuppet)
 
 // Where a mirrored boss is in its fight
 typedef enum {
@@ -377,6 +378,9 @@ struct CoopEnemyAdapter {
     void (*setExtraState)(Actor* actor, const std::vector<u8>& state) = nullptr;
     // Starts the cutscene the authority's boss is in (COOP_BOSS_CUTSCENE) for ours
     void (*enterCutscene)(Actor* actor) = nullptr;
+    // For enemies animated without a skeleton: moves the puppet's body every frame, towards the targets its stateFields
+    // bring from the authority, so it moves as smoothly as the real one instead of only with every snapshot
+    void (*animatePuppet)(Actor* actor) = nullptr;
 };
 
 #define STATE_RANGE(type, first, end)                                      \
@@ -388,6 +392,51 @@ struct CoopEnemyAdapter {
     CoopStateField {                               \
         offsetof(type, field), sizeof(type::field) \
     }
+
+// A Like Like wobbles and pulses by itself, and reaches out by moving its body segments towards targets. The authority
+// sends what it's aiming for, and the puppet does the moving, the way EnRr_Update does.
+static std::vector<CoopStateField> GetLikeLikeStateFields() {
+    std::vector<CoopStateField> fields = {
+        STATE_FIELD(EnRr, segPhaseVelTarget),
+        STATE_FIELD(EnRr, segWobbleXTarget),
+        STATE_FIELD(EnRr, segWobbleZTarget),
+        STATE_FIELD(EnRr, pulseSizeTarget),
+        STATE_FIELD(EnRr, wobbleSizeTarget),
+        STATE_FIELD(EnRr, reachState),
+        STATE_FIELD(EnRr, isDead),
+        STATE_FIELD(EnRr, stopScroll),
+    };
+    for (size_t i = 0; i < ARRAY_COUNT(EnRr::bodySegs); i++) {
+        size_t segment = offsetof(EnRr, bodySegs) + i * sizeof(EnRrBodySegment);
+        fields.push_back({ segment + offsetof(EnRrBodySegment, heightTarget), sizeof(f32) });
+        fields.push_back({ segment + offsetof(EnRrBodySegment, scaleTarget), sizeof(Vec3f) });
+        fields.push_back({ segment + offsetof(EnRrBodySegment, rotTarget), sizeof(Vec3f) });
+    }
+    return fields;
+}
+
+static void AnimateLikeLike(Actor* actor) {
+    EnRr* rr = (EnRr*)actor;
+    if (rr->stopScroll) {
+        return;
+    }
+    rr->scrollTimer++;
+    EnRr_UpdateBodySegments(rr, gPlayState);
+    Math_ApproachF(&rr->segPhaseVel, rr->segPhaseVelTarget, 1.0f, 50.0f);
+    Math_ApproachF(&rr->segPulsePhaseDiff, 4.0f, 1.0f, 5.0f);
+    Math_ApproachF(&rr->segWobblePhaseDiffX, rr->segWobbleXTarget, 1.0f, 0.04f);
+    Math_ApproachF(&rr->segWobblePhaseDiffZ, rr->segWobbleZTarget, 1.0f, 0.01f);
+    Math_ApproachF(&rr->pulseSize, rr->pulseSizeTarget, 1.0f, 0.0015f);
+    Math_ApproachF(&rr->wobbleSize, rr->wobbleSizeTarget, 1.0f, 20.0f);
+    for (EnRrBodySegment& segment : rr->bodySegs) {
+        Math_SmoothStepToS(&segment.rot.x, (s16)segment.rotTarget.x, 5, (s16)(rr->segMoveRate * 1000.0f), 0);
+        Math_SmoothStepToS(&segment.rot.z, (s16)segment.rotTarget.z, 5, (s16)(rr->segMoveRate * 1000.0f), 0);
+        Math_ApproachF(&segment.scale.x, segment.scaleTarget.x, 1.0f, rr->segMoveRate * 0.2f);
+        segment.scale.z = segment.scale.x;
+        Math_ApproachF(&segment.height, segment.heightTarget, 1.0f, rr->segMoveRate * 300.0f);
+    }
+    Math_ApproachF(&rr->segMoveRate, 1.0f, 1.0f, 0.2f);
+}
 
 static u16 GetDekuBabaPhase(Actor* actor) {
     EnDekubabaActionFunc actionFunc = ((EnDekubaba*)actor)->actionFunc;
@@ -1114,7 +1163,12 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
     // ReDead, Gibdo (their scream freezes and their grab holds the player they target)
     { ACTOR_EN_RD, false, offsetof(EnRd, skelAnime), { offsetof(EnRd, collider) } },
     // Like Like (it swallows the player it targets, and wobbles without a skeleton)
-    { ACTOR_EN_RR, false, NO_SKELETON, { offsetof(EnRr, collider1), offsetof(EnRr, collider2) } },
+    { .actorId = ACTOR_EN_RR,
+      .canTargetTeammates = false,
+      .skelAnimeOffset = NO_SKELETON,
+      .hurtColliderOffsets = { offsetof(EnRr, collider1), offsetof(EnRr, collider2) },
+      .stateFields = GetLikeLikeStateFields(),
+      .animatePuppet = AnimateLikeLike },
     // Shell Blade
     { ACTOR_EN_SB, true, offsetof(EnSb, skelAnime), { offsetof(EnSb, collider) } },
     // Stalchild (only the ones placed in a room, not the ones that dig up at night)
@@ -2486,6 +2540,9 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
         SkelAnime_Update(skelAnime);
     }
     ApplyCoopPuppetState(actor, adapter, puppet);
+    if (adapter->animatePuppet != nullptr) {
+        adapter->animatePuppet(actor);
+    }
 
     // Can be hit and pushed, but never attacks (only the authority's real enemy does)
     size_t offsetIndex = 0;
