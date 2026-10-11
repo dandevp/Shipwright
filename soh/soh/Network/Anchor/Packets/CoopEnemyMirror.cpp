@@ -2671,7 +2671,9 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
     SkelAnime* skelAnime = GetSkelAnime(actor, adapter);
     ApplyCoopPuppetAnimation(skelAnime, puppet);
     puppet->hasNewFrame = false;
-    if (skelAnime != nullptr) {
+    // Not before it has an animation: some start without one (a Flare Dancer until it comes out of the ground), and
+    // their skeleton has nothing to update it with yet
+    if (skelAnime != nullptr && skelAnime->update.normal != nullptr) {
         SkelAnime_Update(skelAnime);
     }
     ApplyCoopPuppetState(actor, adapter, puppet);
@@ -3231,6 +3233,30 @@ static const CoopShotAdapter* FindCoopShotAdapter(Actor* actor) {
     return nullptr;
 }
 
+// Along with the state, its scale: the game running it sets it as it starts flying (Twinrova's blasts), and the others
+// would draw it at the size it was spawned with
+static void AddCoopShotState(nlohmann::json& payload, Actor* actor, const CoopShotAdapter* adapter) {
+    std::vector<u8> state;
+    for (const CoopStateField& field : adapter->stateFields) {
+        u8* data = (u8*)actor + field.offset;
+        state.insert(state.end(), data, data + field.size);
+    }
+    payload["state"] = state;
+    payload["scale"] = actor->scale;
+}
+
+static void ApplyCoopShotState(const nlohmann::json& payload, Actor* actor, const CoopShotAdapter* adapter) {
+    std::vector<u8> state = payload.at("state").get<std::vector<u8>>();
+    size_t stateOffset = 0;
+    for (const CoopStateField& field : adapter->stateFields) {
+        if (stateOffset + field.size <= state.size()) {
+            memcpy((u8*)actor + field.offset, state.data() + stateOffset, field.size);
+        }
+        stateOffset += field.size;
+    }
+    actor->scale = payload.at("scale").get<Vec3f>();
+}
+
 // Called before a shot updates. Returns true if its own update is skipped (or was run here already).
 bool Anchor::UpdateCoopShot(Actor* actor) {
     CoopShot* shot = ObjectExtension::GetInstance().Get<CoopShot>(actor);
@@ -3294,12 +3320,6 @@ void Anchor::SendCoopShotState(Actor* actor, bool isRemoved) {
         shot->owner = ownClientId;
     }
 
-    std::vector<u8> state;
-    for (const CoopStateField& field : adapter->stateFields) {
-        u8* data = (u8*)actor + field.offset;
-        state.insert(state.end(), data, data + field.size);
-    }
-
     nlohmann::json payload = PrepCoopPayload(COOP_SHOT_STATE);
     payload["shotId"] = shot->id;
     payload["owner"] = shot->owner;
@@ -3307,7 +3327,7 @@ void Anchor::SendCoopShotState(Actor* actor, bool isRemoved) {
     payload["pos"] = actor->world.pos;
     payload["rot"] = actor->world.rot;
     payload["speedXZ"] = actor->speedXZ;
-    payload["state"] = state;
+    AddCoopShotState(payload, actor, adapter);
     payload["ended"] = shot->hasEnded;
     payload["quiet"] = true;
     for (uint32_t clientId : GetCoopPeers(true)) {
@@ -3333,14 +3353,7 @@ void Anchor::HandlePacket_CoopShotState(nlohmann::json payload) {
                 return;
             }
 
-            std::vector<u8> state = payload.at("state").get<std::vector<u8>>();
-            size_t stateOffset = 0;
-            for (const CoopStateField& field : adapter->stateFields) {
-                if (stateOffset + field.size <= state.size()) {
-                    memcpy((u8*)actor + field.offset, state.data() + stateOffset, field.size);
-                }
-                stateOffset += field.size;
-            }
+            ApplyCoopShotState(payload, actor, adapter);
             actor->world.pos = payload.at("pos").get<Vec3f>();
             actor->world.rot = payload.at("rot").get<Vec3s>();
             actor->speedXZ = payload.at("speedXZ").get<f32>();
@@ -3451,6 +3464,12 @@ void Anchor::FlushCoopPendingProjectiles() {
             payload["shotId"] = shot->id;
             payload["shotTarget"] = shot->target;
             payload["shotOwner"] = shot->owner;
+            // What the boss set on it after spawning it, like which of Twinrova's blasts it is (fire or ice, which
+            // decides the Mirror Shield charge). The player it flies at runs it from here, without a state from us.
+            const CoopShotAdapter* adapter = FindCoopShotAdapter(projectile);
+            if (adapter != nullptr) {
+                AddCoopShotState(payload, projectile, adapter);
+            }
         }
         // Some need the one that shot them (Volvagia's rocks)
         if (projectile->parent != nullptr && (IsCoopEnemy(projectile->parent) || IsCoopBoss(projectile->parent))) {
@@ -3499,6 +3518,10 @@ void Anchor::HandlePacket_CoopEnemyProjectile(nlohmann::json payload) {
     if (payload.contains("shotId")) {
         SetCoopShot(projectile, payload["shotId"].get<uint32_t>(), payload["shotTarget"].get<uint32_t>(),
                     payload["shotOwner"].get<uint32_t>());
+        const CoopShotAdapter* adapter = FindCoopShotAdapter(projectile);
+        if (adapter != nullptr && payload.contains("state")) {
+            ApplyCoopShotState(payload, projectile, adapter);
+        }
     }
     projectile->world.rot = payload.at("worldRot").get<Vec3s>();
     projectile->velocity = payload.at("velocity").get<Vec3f>();

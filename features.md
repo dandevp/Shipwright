@@ -72,6 +72,8 @@ enemies between teammates, so they can play through the same areas together.
   - Wolfos, Deku Baba, Withered Deku Baba, Dark Link
 - Enemies a mirrored enemy spawns during the fight (the Biris a Bari splits into, a Flare Dancer's core) are spawned
   for everyone too.
+- A puppet that has no animation yet (a Flare Dancer still in the ground) isn't animated until the authority's has
+  one, as the enemy itself does.
 - A Deku Baba's Deku Stick and a Poe's soul appear for everyone, and are gone for everyone once one player takes them.
 
 ### Bosses
@@ -99,6 +101,9 @@ enemies between teammates, so they can play through the same areas together.
   blasts) are run by the game of the player they fly at: only there can they be hit back, absorbed or dodged. Once one
   flies back at the boss, the authority's game runs it, until the boss sends it at a player again. Everyone sees the
   same shot, and when it ends (bursting on a player, hitting the boss, hitting the floor) it ends for everyone.
+  - The player it flies at gets it with what the boss gave it, like whether a Twinrova blast is fire or ice. That
+    decides the Mirror Shield charge: a blast of the other kind empties it, and the charged blast uses it up.
+  - Everyone else sees it at its full size from the start.
 - Reflecting one Twinrova sister's beam onto the other, and stunning Twinrova with a charged Mirror Shield blast, count
   for everyone, whoever does it.
 - King Dodongo swallows a bomb thrown into his mouth by any player: the thrower's game decides it, and his choking on
