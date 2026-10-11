@@ -22,13 +22,14 @@ Discord" kind of co-op. You share the same rooms, live:
 Twice the heroes. Twice the chaos. Exactly one Ganon who is about to have a **very** bad day. 🔥
 
 > 🧪 This is an **experimental test build**: things *will* break, and that's the point. Tell us when they do
-> (see "Reporting problems" below). Linux only (AppImage).
+> (see "Reporting problems" below). Ready-made build for Linux (AppImage); on Windows you build it yourself
+> (see "Building it yourself").
 
 ---
 
 ## 🚀 Get started
 
-Got the test build (`SoH-Coop-friends.tar.gz`) from a friend? Then:
+Got the Linux test build (`SoH-Coop-friends.tar.gz`) from a friend? Then:
 
 1. Unpack it anywhere.
 2. Run `./start.sh` (if it doesn't start: `chmod +x start.sh SoH-Coop.appimage`).
@@ -36,6 +37,10 @@ Got the test build (`SoH-Coop-friends.tar.gz`) from a friend? Then:
    https://ship.equipment) and extracts the game data from it. That takes a minute. No game data comes with this build.
 
 Everything the game stores (settings, saves, game data) ends up in `data/` next to `start.sh`.
+
+Got a Windows zip from a friend instead (see "Make a zip for your friends" below)? Unpack it anywhere and run
+`soh.exe`. If Windows SmartScreen warns about an unknown app, click **More info > Run anyway** (the build isn't
+signed). Settings, saves and game data are stored next to `soh.exe`.
 
 ## Playing together
 
@@ -49,7 +54,8 @@ You sync with the others while you're in the same area. Items and drops stay you
 ## Mods
 
 - Link models (and custom swords, shields, ...) are per player: the others see you with yours. They're downloaded
-  when you meet. Under **Your Link Model** you pick which of your mods make up your Link.
+  when you meet. Under **Your Link Model** you pick which of your mods make up your Link. Most model mods are
+  alternate assets: they only show (for you and the others) while alternate assets are on, toggled with **Tab**.
 - Mods that change the game itself must be the same for everyone. If yours differ from the room owner's, the game
   offers to match them and restarts.
 
@@ -58,9 +64,10 @@ You sync with the others while you're in the same area. Items and drops stay you
 Want to build it from source instead of using the AppImage? The code lives on the `develop` branch of
 https://github.com/dandevp/Shipwright.
 
-### What you need
+### 🐧 Linux
 
-- Linux (for Windows and macOS see `docs/BUILDING.md` in the repo)
+#### What you need
+
 - **GCC 10+** or **Clang 16+**, **CMake 3.26+**, **Ninja**, **Git**
 - About 3 GB of disk space, and your Ocarina of Time ROM to play
 - The libraries, in one go for your distro:
@@ -75,7 +82,7 @@ https://github.com/dandevp/Shipwright.
 
 On Ubuntu, check `cmake --version`: older releases ship one below 3.26, get a newer one from https://cmake.org or pip.
 
-### Build
+#### Build
 
 ```sh
 git clone -b develop https://github.com/dandevp/Shipwright.git
@@ -89,7 +96,7 @@ cmake --build build-cmake                          # the game: build-cmake/soh/s
 
 The first build downloads a few more libraries and takes a while (10–20 minutes on an average PC).
 
-### Run
+#### Run
 
 ```sh
 cd build-cmake/soh
@@ -98,7 +105,7 @@ cd build-cmake/soh
 
 On the first start it asks for your ROM and extracts the game data, like the AppImage does.
 
-### Make your own AppImage (optional)
+#### Make your own AppImage (optional)
 
 ```sh
 cd build-cmake
@@ -107,6 +114,87 @@ cpack -G External          # creates Ship-9.3.0-rolling.appimage
 
 If the AppImage ends up missing or old (the "strip" step fails on some distros, like Arch), run it as
 `NO_STRIP=1 cpack -G External` instead.
+
+### 🪟 Windows
+
+#### What you need
+
+- Windows 10 or 11, 64-bit, with **at least 8 GB of RAM** (the compiler runs out of memory with less)
+- About 10 GB of disk space (Visual Studio, the libraries and the build)
+- **Visual Studio 2022** (the free Community edition is fine): https://visualstudio.microsoft.com
+  - In the installer, tick the **Desktop development with C++** workload.
+  - Under "Installation details" on the right, make sure **MSVC v143 - VS 2022 C++ x64/x86 build tools**, a
+    **Windows 10/11 SDK** and **C++ CMake tools for Windows** are ticked (they usually are). The CMake tools bring
+    CMake and Ninja along.
+- **Git**: https://git-scm.com/download/win (keep the default options)
+- **Python 3**: https://www.python.org/downloads/ (tick "Add python.exe to PATH" in the installer)
+
+Install Git and Python on their own rather than through the Visual Studio installer, that has caused trouble before.
+All other libraries (SDL2, OpenSSL, libzip, ...) are downloaded and built automatically on the first build, through
+vcpkg.
+
+#### Build
+
+Open **Developer PowerShell for VS 2022** from the Start menu (not the plain PowerShell: this one has the compiler,
+CMake and Ninja set up), then:
+
+```powershell
+cd $HOME                                           # or wherever you want the code to live
+git clone -b develop https://github.com/dandevp/Shipwright.git
+cd Shipwright
+git submodule update --init                       # libultraship, Torch and the Archipelago client libraries
+
+cmake -S . -B build-windows -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-windows --target GenerateSohOtr  # SoH's own assets (soh.o2r)
+cmake --build build-windows                          # the game: build-windows\soh\soh.exe
+```
+
+The first configure step sets up vcpkg and builds all libraries, which takes a long time (30–60 minutes is normal).
+Later builds only rebuild what changed.
+
+Keep the path short and without spaces or umlauts (like `C:\Users\you\Shipwright`): very long paths can break the
+vcpkg step.
+
+#### Run
+
+```powershell
+cd build-windows\soh
+.\soh.exe
+```
+
+On the first start it asks for your ROM and extracts the game data. Settings, saves and game data are stored in the
+folder you start it from, and mods go into a `mods` folder there.
+
+#### Make a zip for your friends (optional)
+
+```powershell
+cd build-windows
+cpack                       # creates a .zip in ..\_packages
+```
+
+The zip holds `soh.exe` and `soh.o2r`, everything a friend needs besides their own ROM. Never put your ROM or
+`oot.o2r` in it.
+
+#### Updating
+
+```powershell
+git pull
+git submodule update --init
+cmake --build build-windows
+```
+
+#### If it goes wrong
+
+- **`cl` or `ninja` not found**: you're in the plain PowerShell. Open "Developer PowerShell for VS 2022".
+- **vcpkg fails to download or build a library**: check your internet connection and run the `cmake -S . -B ...`
+  step again, it continues where it stopped. If it keeps failing, delete the `vcpkg` and `build-windows` folders and
+  start over.
+- **The compiler crashes or the PC freezes**: not enough RAM. Build with fewer jobs:
+  `cmake --build build-windows --parallel 2`.
+- **Missing `soh.o2r` at start**: run the `GenerateSohOtr` step again.
+- Want to work on the code in Visual Studio? `docs/BUILDING.md` explains how to generate a Visual Studio solution.
+
+macOS: see `docs/BUILDING.md`.
 
 ## 🐛 Reporting problems
 
