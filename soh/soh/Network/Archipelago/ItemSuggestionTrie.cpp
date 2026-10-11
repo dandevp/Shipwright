@@ -106,7 +106,7 @@ ItemSuggestionTrie::OptionalSuggestions ItemSuggestionTrie::GetWordSuggestion(co
         std::unordered_set<int64_t> suggestions;
         GetAllSuggestions(nextNode, suggestions);
         return suggestions;
-    } catch (const NodeNotFoundException& e) { return std::nullopt; }
+    } catch (const NodeNotFoundException&) { return std::nullopt; }
     return std::nullopt;
 }
 

@@ -160,7 +160,7 @@ class ArchipelagoClient {
 };
 
 void LoadArchipelagoData();
-void SaveArchipelagoData(SaveContext* saveContext, int sectionID, bool fullSave);
+void SaveArchipelagoData(const SaveContext& saveContext, int sectionID, bool fullSave);
 void InitArchipelagoData(bool isDebug);
 extern "C" {
 #endif // END __cplusplus
