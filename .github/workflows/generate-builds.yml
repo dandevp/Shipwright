@@ -245,13 +245,16 @@ jobs:
         cd ..
         mv _packages/*.zip _packages/soh-windows.zip
     - name: Show build errors
-      # Job logs need admin rights to download, annotations don't: the errors are readable without logging in
+      # Job logs need admin rights to download, annotations don't: the errors are readable without logging in. GitHub
+      # shows only 10 annotations per step, so they all go into one.
       if: failure()
       run: |
         if (Test-Path build.log) {
-          Select-String -Path build.log -Pattern '(fatal )?error [A-Z]+[0-9]+|warning C[0-9]+|CMake Error|ninja: build stopped|FAILED:' |
-            Select-Object -First 40 |
-            ForEach-Object { Write-Output "::error::$($_.Line.Trim())" }
+          $lines = Select-String -Path build.log -Context 0,2 -Pattern 'error [A-Z]+[0-9]+|\\soh\\(soh|src)\\.*warning C[0-9]+|CMake Error|FAILED:' |
+            ForEach-Object { @($_.Line) + $_.Context.PostContext } |
+            Select-Object -Unique -First 80
+          $message = ($lines | ForEach-Object { $_.Trim() }) -join '%0A'
+          Write-Output "::error::$message"
         }
     - name: Unzip package
       run: Expand-Archive -Path _packages/soh-windows.zip -DestinationPath soh-windows
