@@ -161,6 +161,10 @@ enemies between teammates, so they can play through the same areas together.
 - Mods that change more than looks and sound (scenes, actors, text, custom items, ...) have to match between teammates,
   else the rooms they share aren't the same. Texture packs, sound packs and Link models don't count (models are per
   player, see below). Teammates whose gameplay mods differ aren't synced with each other.
+- Other model swaps don't count either: display lists, vertices, matrices and skeletons (binary or XML) are looks, so
+  equipment packs, get item models, the Master Sword pedestal or Dark Link only change what you see, as do loose sound
+  files and a mod's cosmetics editor entries. Scenes, collision, paths, cutscenes, text and animations do count. Empty
+  and hidden files (editor leftovers) are skipped.
 - Whoever's gameplay mods differ from the room owner's is asked once whether to match them: the gameplay mods the owner
   doesn't have are disabled, and the owner's ones that were disabled this way come back. SoH closes to apply it (the
   files are renamed to `*.o2r.disabled` and back at the next start). Mods the owner has that you don't have at all are

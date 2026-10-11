@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <filesystem>
 #include <map>
 #include <mutex>
@@ -19,7 +20,8 @@
  * Gameplay mods (sent with the client state)
  *
  * Mods that change more than looks and sound (scenes, actors, text, ...) have to match between teammates, else the
- * rooms they share aren't the same. Texture packs, sound packs and Link models (see CoopModels.cpp) don't count.
+ * rooms they share aren't the same. Texture packs, sound packs, Link models (see CoopModels.cpp) and other model swaps
+ * (equipment, get item models, enemies' looks) don't count.
  * Teammates with different gameplay mods aren't co-op peers, and whoever's mods differ from the room owner's is asked
  * whether to match them. That disables the gameplay mods the owner doesn't have and enables those they have that were
  * disabled this way before, by renaming the files, at the next start since they're in use until then.
@@ -30,10 +32,17 @@
 
 namespace {
 
-// Resource types that only change looks or sound (see Fast::ResourceType and SOH::ResourceType)
+// Resource types that only change looks or sound (see Fast::ResourceType and SOH::ResourceType). Models are drawn from
+// display lists, vertices, matrices and skeletons, while scenes, collision, paths, cutscenes, text and animations
+// (their lengths time actors) change gameplay.
 bool IsLookOrSoundResource(uint32_t type) {
     switch (type) {
         case 0x4F544558: // OTEX, texture
+        case 0x4F444C54: // ODLT, display list
+        case 0x4F565458: // OVTX, vertices
+        case 0x4F4D5458: // OMTX, matrix
+        case 0x4F534B4C: // OSKL, skeleton
+        case 0x4F534C42: // OSLB, skeleton limb
         case 0x4F424749: // OBGI, background image
         case 0x4F415544: // OAUD, audio
         case 0x4F534D50: // OSMP, audio sample
@@ -43,6 +52,48 @@ bool IsLookOrSoundResource(uint32_t type) {
         default:
             return false;
     }
+}
+
+// The same for XML resources, by their root element (the resource type it's registered under, see OTRGlobals.cpp)
+bool IsLookOrSoundXmlResource(std::string_view element) {
+    return element == "DisplayList" || element == "Vertex" || element == "Skeleton" || element == "SkeletonLimb" ||
+           element == "Sample" || element == "SoundFont" || element == "Sequence";
+}
+
+// The root element of an XML resource, from its start (after a BOM, declaration or comments). Empty if it isn't XML.
+std::string_view XmlRootElement(std::string_view text) {
+    if (text.starts_with("\xEF\xBB\xBF")) {
+        text.remove_prefix(3);
+    }
+    while (true) {
+        size_t start = text.find_first_not_of(" \t\r\n");
+        if (start == std::string_view::npos || text[start] != '<') {
+            return {};
+        }
+        text.remove_prefix(start);
+        if (text.starts_with("<?") || text.starts_with("<!")) {
+            size_t end = text.find('>');
+            if (end == std::string_view::npos) {
+                return {};
+            }
+            text.remove_prefix(end + 1);
+            continue;
+        }
+        text.remove_prefix(1);
+        return text.substr(0, text.find_first_of(" \t\r\n/>"));
+    }
+}
+
+// Files that aren't resources but only change looks or sound: images, sounds, and the cosmetics editor's entries for
+// the mod's colors (see DynamicCosmeticsEditor.cpp). Hidden files (editors' leftovers) are never loaded either.
+bool IsLookOrSoundFile(const std::string& name) {
+    if (std::filesystem::path(name).filename().string().starts_with(".")) {
+        return true;
+    }
+    std::string extension = std::filesystem::path(name).extension().string();
+    std::transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+    return extension == ".png" || extension == ".jpg" || extension == ".jpeg" || extension == ".wav" ||
+           extension == ".ogg" || extension == ".mp3" || extension == ".flac" || name == "CosmeticEntries";
 }
 
 struct ScannedMod {
@@ -107,20 +158,26 @@ bool ScanModArchiveUncached(const std::string& path, ScannedMod& result) {
         std::string name = stat.name;
         std::string modelPath = name.starts_with("alt/") ? name.substr(4) : name;
         if (modelFiles.contains(modelPath) || name == "manifest.json" || name == "version" || name.ends_with(".meta") ||
-            name.ends_with(".png") || name.ends_with(".jpg")) {
+            stat.size == 0 || IsLookOrSoundFile(name)) {
             continue;
         }
 
-        // Binary resources say what they are at bytes 4 to 7
-        uint8_t header[8] = {};
+        // Binary resources say what they are at bytes 4 to 7, XML ones by their root element
+        char header[256] = {};
         zip_file_t* file = zip_fopen_index(zip, i, 0);
-        bool hasHeader = file != nullptr && zip_fread(file, header, sizeof(header)) == sizeof(header);
+        zip_int64_t headerSize = file != nullptr ? zip_fread(file, header, sizeof(header)) : -1;
         if (file != nullptr) {
             zip_fclose(file);
         }
-        uint32_t type = header[0] == 0 ? (header[4] | header[5] << 8 | header[6] << 16 | (uint32_t)header[7] << 24)
-                                       : ((uint32_t)header[4] << 24 | header[5] << 16 | header[6] << 8 | header[7]);
-        if (!hasHeader || !IsLookOrSoundResource(type)) {
+        std::string_view element = XmlRootElement(std::string_view(header, std::max<zip_int64_t>(headerSize, 0)));
+        if (!element.empty()) {
+            result.isGameplay = !IsLookOrSoundXmlResource(element);
+            continue;
+        }
+        auto byte = [&header](int index) { return (uint32_t)(uint8_t)header[index]; };
+        uint32_t type = byte(0) == 0 ? (byte(4) | byte(5) << 8 | byte(6) << 16 | byte(7) << 24)
+                                     : (byte(4) << 24 | byte(5) << 16 | byte(6) << 8 | byte(7));
+        if (headerSize < 8 || !IsLookOrSoundResource(type)) {
             result.isGameplay = true;
         }
     }
