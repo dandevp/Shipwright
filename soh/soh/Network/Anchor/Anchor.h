@@ -203,7 +203,8 @@ class Anchor : public Network {
     bool coopNpcRefreshPending = false; // A teammate here changed the story, so NPCs may need to change too
     bool coopClaimsAuthority = false;   // We run the enemies of our room for everyone in it
     uint32_t coopRoomAuthority = 0;     // Who does, 0 while nobody does yet
-    u32 coopRoomFrames = 0;             // Frames since we entered the room (or came back from a pause)
+    bool coopWasPaused = false;
+    u32 coopRoomFrames = 0; // Frames since we entered the room (or came back from a pause)
     std::chrono::steady_clock::time_point coopLastActiveTime;
     std::queue<nlohmann::json> incomingPacketQueue;
     std::mutex incomingPacketQueueMutex;
@@ -236,6 +237,7 @@ class Anchor : public Network {
     nlohmann::json PrepCoopDestroyedActors(s8 roomNum);
     void ApplyCoopDestroyedActors(nlohmann::json& destroyed, bool fromSameSeed);
     void UpdateCoopRoomAuthority();
+    void UpdateCoopPause();
     Actor* SpawnCoopPuppet(const CoopActorIdentity& identity, nlohmann::json& enemy);
     nlohmann::json PrepCoopEnemyHealth(s8 roomNum);
     void ApplyCoopEnemyHealth(nlohmann::json& enemies);

@@ -111,6 +111,7 @@ void Anchor::RegisterHooks() {
         // Normally cleared after each actor update already, but an update can be skipped by another hook
         coopUpdatingActor = nullptr;
         ProcessIncomingPacketQueue();
+        UpdateCoopPause();
         ApplyCoopPendingHits();
         RefreshCoopNpcs();
         UpdateCoopCarriedCopies();

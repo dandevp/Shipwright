@@ -49,8 +49,12 @@ enemies between teammates, so they can play through the same areas together.
   position, rotation, health, animation and what their drawing depends on.
   - The authority is whoever was in the room first. A player entering a room where a fight is going on joins it,
     instead of the fight starting over.
-  - If the authority leaves the room or pauses for more than a second, another player in the room takes over.
-  - A player coming back from a pause doesn't take over again, their enemies stood still meanwhile.
+  - If the authority pauses, another player in the room takes over the moment the pause menu opens. If it leaves the
+    room or its game stops responding (lag, crash), after a second.
+  - A player coming back from a pause doesn't take over again, however short the pause, their enemies stood still
+    meanwhile.
+  - Taking over, enemies go on from exactly where the authority's last were, standing (no leftover speed from before
+    they followed the authority's). What they were doing comes from their own state, which may be older.
 - Hitting a puppet hits the authority's enemy, with its own damage table, reaction and death. That goes for what you
   shoot, throw or set off too: arrows, slingshot seeds, bombs, and a Deku Nut's flash stunning it.
 - On the authority, enemies go after the most dangerous player in the room: whoever dealt them the most damage. While
@@ -62,7 +66,7 @@ enemies between teammates, so they can play through the same areas together.
   - Flare Dancer (and its core), Floormaster, Freezard, Gerudo fighter, Gohma Larva (and its egg), Guay
   - Iron Knuckle, Keese, Lizalfos, Dinolfos, Mad Scrub, Moblin, Octorok, Poe, ReDead, Gibdo, Like-Like, Shell Blade
   - Skulltula, Skullwalltula, Spike, Stalchild, Stalfos, Stinger, Tektite, Torch Slug, Wallmaster
-  - Wolfos, Deku Baba, Withered Deku Baba
+  - Wolfos, Deku Baba, Withered Deku Baba, Dark Link
 - Enemies a mirrored enemy spawns during the fight (the Biris a Bari splits into, a Flare Dancer's core) are spawned
   for everyone too.
 - A Deku Baba's Deku Stick and a Poe's soul appear for everyone, and are gone for everyone once one player takes them.
@@ -229,18 +233,22 @@ enemies between teammates, so they can play through the same areas together.
 - Every other enemy type only shares its health and death, and runs its own AI for each player. Among them:
   - Peahat, Tailpasaran, Shabom
   - the Deku Scrubs of the Deku Tree puzzle
-  - Parasitic Tentacles, Poe Sisters, Big Poes, Dark Link
+  - Parasitic Tentacles, Poe Sisters, Big Poes
 - Nabooru's Iron Knuckle isn't mirrored, its fight is part of a cutscene.
 - Puppets don't show what their enemy's own update would add besides their drawing: sounds, particles, dust, flames
   trails (Flare Dancer), armor pieces flying off (Iron Knuckle).
 - Some details are approximated on puppets:
   - Stalfos upper body animations
+  - Dark Link: a puppet shows the authority's Dark Link in the same pose (sent like a teammate's player model, with
+    the frame between two snapshots guessed), fading in and out the same way. Hits on his sword or shield don't bounce
+    off a puppet, they count like hits on his body.
   - Like-Like's wobble: puppets wobble, pulse and reach out like the authority's, moving towards the targets it sends
     every frame by themselves, so the wobble isn't in the exact same phase as the authority's
   - the Moblin's shield, which doesn't block from the front for teammates
 - Enemies that act on the player they target directly (grab, freeze, damage outside of a normal hit) only go after the
   authority's own player:
-  Floormaster, Wallmaster, ReDead, Gibdo, Like-Like, Moblin, Skulltula, Gerudo fighter, Dead Hand's hands.
+  Floormaster, Wallmaster, ReDead, Gibdo, Like-Like, Moblin, Skulltula, Gerudo fighter, Dead Hand's hands, Dark Link
+  (who copies that player's moves).
 - Who dealt how much damage is counted by the authority. It starts over when another player takes over the room, and
   when a room is entered again.
 - An enemy touching a teammate's dummy player in your game doesn't count as a hit, and the enemy doesn't react to it

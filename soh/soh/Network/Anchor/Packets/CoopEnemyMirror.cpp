@@ -74,6 +74,9 @@ extern "C" {
 extern PlayState* gPlayState;
 
 void EnRr_UpdateBodySegments(EnRr* rr, PlayState* play);
+u8 EnTorch2_GetAlpha(void);
+void EnTorch2_SetAlpha(u8 alpha);
+void Player_SetModels(Player* player, s32 modelGroup);
 void BossDodongo_IntroCutscene(BossDodongo* bossDodongo, PlayState* play);
 void BossDodongo_Walk(BossDodongo* bossDodongo, PlayState* play);
 void BossDodongo_Inhale(BossDodongo* bossDodongo, PlayState* play);
@@ -322,6 +325,7 @@ void EnVali_Lurk(EnVali* enVali, PlayState* play);
  * on also start in the authority's game when a teammate steps on.
  */
 
+#define SNAPSHOT_INTERVAL_FRAMES 2
 #define NO_SKELETON SIZE_MAX // For enemies animated without a skeleton (see animatePuppet)
 
 // Where a mirrored boss is in its fight
@@ -436,6 +440,55 @@ static void AnimateLikeLike(Actor* actor) {
         Math_ApproachF(&segment.height, segment.heightTarget, 1.0f, rr->segMoveRate * 300.0f);
     }
     Math_ApproachF(&rr->segMoveRate, 1.0f, 1.0f, 0.2f);
+}
+
+// Dark Link is a copy of Link, animated by the player code. The authority sends his pose (the joint table, like a
+// teammate's dummy player), what he holds and his transparency (he fades in when the fight starts and out when hit).
+struct CoopDarkLinkPose {
+    Vec3s last[PLAYER_LIMB_BUF_COUNT];
+    Vec3s previous[PLAYER_LIMB_BUF_COUNT];
+    u8 framesSinceNew = 0;
+    bool hasPrevious = false;
+    s32 modelGroup = -1;
+};
+static ObjectExtension::Register<CoopDarkLinkPose> CoopDarkLinkPoseRegister;
+
+static std::vector<u8> GetDarkLinkExtraState(Actor* actor) {
+    return { EnTorch2_GetAlpha() };
+}
+
+static void SetDarkLinkExtraState(Actor* actor, const std::vector<u8>& state) {
+    EnTorch2_SetAlpha(state[0]);
+}
+
+// Snapshots come every other frame, so the frame in between continues the movement by half a step
+static void AnimateDarkLink(Actor* actor) {
+    Player* darkLink = (Player*)actor;
+    CoopDarkLinkPose* pose = ObjectExtension::GetInstance().Get<CoopDarkLinkPose>(actor);
+    if (pose == nullptr) {
+        ObjectExtension::GetInstance().Set<CoopDarkLinkPose>(actor, CoopDarkLinkPose{});
+        pose = ObjectExtension::GetInstance().Get<CoopDarkLinkPose>(actor);
+        memcpy(pose->last, darkLink->jointTable, sizeof(pose->last));
+    }
+
+    if (memcmp(pose->last, darkLink->jointTable, sizeof(pose->last)) != 0) {
+        memcpy(pose->previous, pose->last, sizeof(pose->previous));
+        memcpy(pose->last, darkLink->jointTable, sizeof(pose->last));
+        pose->framesSinceNew = 0;
+        pose->hasPrevious = true;
+    } else if (pose->hasPrevious && pose->framesSinceNew < SNAPSHOT_INTERVAL_FRAMES - 1) {
+        pose->framesSinceNew++;
+        for (size_t i = 0; i < ARRAY_COUNT(pose->last); i++) {
+            darkLink->jointTable[i].x = pose->last[i].x + (s16)(pose->last[i].x - pose->previous[i].x) / 2;
+            darkLink->jointTable[i].y = pose->last[i].y + (s16)(pose->last[i].y - pose->previous[i].y) / 2;
+            darkLink->jointTable[i].z = pose->last[i].z + (s16)(pose->last[i].z - pose->previous[i].z) / 2;
+        }
+    }
+
+    if (pose->modelGroup != darkLink->modelGroup) {
+        pose->modelGroup = darkLink->modelGroup;
+        Player_SetModels(darkLink, darkLink->modelGroup);
+    }
 }
 
 static u16 GetDekuBabaPhase(Actor* actor) {
@@ -1162,6 +1215,17 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
     { ACTOR_EN_OKUTA, true, offsetof(EnOkuta, skelAnime), { offsetof(EnOkuta, collider) } },
     // ReDead, Gibdo (their scream freezes and their grab holds the player they target)
     { ACTOR_EN_RD, false, offsetof(EnRd, skelAnime), { offsetof(EnRd, collider) } },
+    // Dark Link (he copies the player he fights, and is animated like a player rather than by a skeleton of his own).
+    // Hits on his shield and sword don't bounce off a puppet, they go to the authority's like hits on his body.
+    { .actorId = ACTOR_EN_TORCH2,
+      .canTargetTeammates = false,
+      .skelAnimeOffset = NO_SKELETON,
+      .hurtColliderOffsets = { offsetof(Player, cylinder) },
+      .stateFields = { STATE_FIELD(Player, jointTable), STATE_FIELD(Player, modelGroup),
+                       STATE_FIELD(Player, heldItemAction), STATE_FIELD(Player, meleeWeaponState) },
+      .getExtraState = GetDarkLinkExtraState,
+      .setExtraState = SetDarkLinkExtraState,
+      .animatePuppet = AnimateDarkLink },
     // Like Like (it swallows the player it targets, and wobbles without a skeleton)
     { .actorId = ACTOR_EN_RR,
       .canTargetTeammates = false,
@@ -1531,7 +1595,6 @@ static const s16 sCoopMirroredObjects[] = {
 // How long a hit on a puppet waits on the authority for its enemy to be hittable (e.g. when it arrives in the same
 // frame as another hit)
 #define HIT_RETRY_FRAMES 4
-#define SNAPSHOT_INTERVAL_FRAMES 2
 #define AUTHORITY_UNRESPONSIVE_TIME std::chrono::seconds(1)
 
 struct CoopPuppet {
@@ -1553,7 +1616,8 @@ struct CoopPuppet {
     std::vector<u8> state;              // The adapter's state fields, one after the other
     std::vector<u8> extraState;         // See getExtraState
     u16 phase = 0;
-    bool isReleased = false; // Runs its own update for good (see onAuthorityGone)
+    bool isReleased = false;  // Runs its own update for good (see onAuthorityGone)
+    bool isFollowing = false; // Its update was skipped last frame, it only followed the authority's
     Vec3f scale;
     CoopBossFight bossFight = COOP_BOSS_WAITING;
     // Bosses only (see UpdateCoopPuppet)
@@ -1740,6 +1804,25 @@ void Anchor::UpdateCoopRoomAuthority() {
 
     coopClaimsAuthority = authority == ownClientId;
     coopRoomAuthority = authority == UINT32_MAX ? 0 : authority;
+}
+
+// Called every frame, paused or not. The pause menu stops our enemies, and our player too, so teammates would only pass
+// us over once our PLAYER_UPDATE has been missing for AUTHORITY_UNRESPONSIVE_TIME, with the enemies standing still for
+// everyone meanwhile. Instead we hand the room over the moment we pause, and since our enemies stood still while
+// paused, we don't take it back afterwards, however short the pause was.
+void Anchor::UpdateCoopPause() {
+    if (!IsSaveLoaded()) {
+        coopWasPaused = false;
+        return;
+    }
+
+    bool isPaused = gPlayState->pauseCtx.state != 0 || gPlayState->pauseCtx.debugState != 0;
+    if (isPaused && !coopWasPaused && coopClaimsAuthority) {
+        coopClaimsAuthority = false;
+        coopRoomFrames = 0;
+        SendPacket_PlayerUpdate();
+    }
+    coopWasPaused = isPaused;
 }
 
 // Without the soul of the scene's boss, our game left it out (see Randomizer_IsCurrentBossSoulMissing)
@@ -2373,6 +2456,17 @@ static bool IsCoopHeldLocally(Actor* actor) {
     return IsPulledByOurHookshot(actor);
 }
 
+// A puppet runs its own AI again: we took over the room (the authority paused or left), or the authority went quiet.
+// Its own update didn't run while it followed the authority's, so it still has the speed and previous position from
+// before, which would send it sliding off or let the wall check pull it back to where it was back then. It goes on
+// from exactly where the authority's last was, standing.
+static void ResumeCoopPuppet(Actor* actor, CoopPuppet* puppet) {
+    actor->world.pos = puppet->targetPos;
+    actor->prevPos = actor->world.pos;
+    actor->speedXZ = 0.0f;
+    actor->velocity = { 0.0f, 0.0f, 0.0f };
+}
+
 // Runs before the enemy's update while it's a puppet. Returns true if its update is skipped, which is the case for
 // enemies. A boss runs its own update (see the top of the file), unless it should run its own AI.
 bool Anchor::UpdateCoopPuppet(Actor* actor) {
@@ -2384,6 +2478,10 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
     CoopPuppet* puppet = ObjectExtension::GetInstance().Get<CoopPuppet>(actor);
     if (puppet == nullptr || puppet->isReleased || !IsCoopSyncActive() ||
         gPlayState->gameplayFrames - puppet->lastSnapshotFrame > PUPPET_TIMEOUT_FRAMES || IsCoopRoomAuthority()) {
+        if (puppet != nullptr && puppet->isFollowing) {
+            puppet->isFollowing = false;
+            ResumeCoopPuppet(actor, puppet);
+        }
         return false;
     }
 
@@ -2566,6 +2664,7 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
         }
     }
 
+    puppet->isFollowing = true;
     return true;
 }
 
@@ -3009,8 +3108,8 @@ static void FollowGanondorfBigMagicBall(Actor* actor) {
     ball->unk_1A2++;
     ball->unk_1A6 = (ball->unk_1A6 + 1) % 15;
     ball->unk_2EC[ball->unk_1A6] = actor->world.pos;
-    ball->unk_3C4[ball->unk_1A6].x = BINANG_TO_RAD(actor->world.rot.x);
-    ball->unk_3C4[ball->unk_1A6].y = BINANG_TO_RAD(actor->world.rot.y);
+    ball->unk_3C4[ball->unk_1A6].x = (f32)BINANG_TO_RAD(actor->world.rot.x);
+    ball->unk_3C4[ball->unk_1A6].y = (f32)BINANG_TO_RAD(actor->world.rot.y);
 }
 
 // One that flew off out of the room breaks the platform it ended up at
