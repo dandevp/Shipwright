@@ -272,10 +272,24 @@ void BossGoma_FloorMain(BossGoma* bossGoma, PlayState* play);
 void BossGoma_WallClimb(BossGoma* bossGoma, PlayState* play);
 void BossGoma_CeilingMoveToCenter(BossGoma* bossGoma, PlayState* play);
 void EnDekubaba_Wait(EnDekubaba* enDekubaba, PlayState* play);
+void EnDekubaba_Grow(EnDekubaba* enDekubaba, PlayState* play);
+void EnDekubaba_Retract(EnDekubaba* enDekubaba, PlayState* play);
+void EnDekubaba_DecideLunge(EnDekubaba* enDekubaba, PlayState* play);
+void EnDekubaba_PrepareLunge(EnDekubaba* enDekubaba, PlayState* play);
+void EnDekubaba_PullBack(EnDekubaba* enDekubaba, PlayState* play);
+void EnDekubaba_Recover(EnDekubaba* enDekubaba, PlayState* play);
+void EnDekubaba_Hit(EnDekubaba* enDekubaba, PlayState* play);
+void EnDekubaba_StunnedVertical(EnDekubaba* enDekubaba, PlayState* play);
+void EnDekubaba_Sway(EnDekubaba* enDekubaba, PlayState* play);
 void EnDekubaba_Lunge(EnDekubaba* enDekubaba, PlayState* play);
 void EnDekubaba_PrunedSomersault(EnDekubaba* enDekubaba, PlayState* play);
 void EnDekubaba_SetupDeadStickDrop(EnDekubaba* enDekubaba, PlayState* play);
 void EnFd_Reappear(EnFd* enFd, PlayState* play);
+void EnFd_SpinAndGrow(EnFd* enFd, PlayState* play);
+void EnFd_JumpToGround(EnFd* enFd, PlayState* play);
+void EnFd_Land(EnFd* enFd, PlayState* play);
+void EnFd_SpinAndSpawnFire(EnFd* enFd, PlayState* play);
+void EnFd_WaitForCore(EnFd* enFd, PlayState* play);
 void EnFd_Run(EnFd* enFd, PlayState* play);
 void EnFloormas_Draw(Actor* thisx, PlayState* play);
 void EnFloormas_DrawHighlighted(Actor* thisx, PlayState* play);
@@ -283,6 +297,14 @@ void EnPoh_SetupDeath(EnPoh* enPoh, PlayState* play);
 void func_80ADF15C(EnPoh* enPoh, PlayState* play); // Poe dying
 void EnPoh_Idle(EnPoh* enPoh, PlayState* play);
 void EnVali_FloatIdle(EnVali* enVali, PlayState* play);
+void EnVali_DropAppear(EnVali* enVali, PlayState* play);
+void EnVali_Attacked(EnVali* enVali, PlayState* play);
+void EnVali_Retaliate(EnVali* enVali, PlayState* play);
+void EnVali_MoveArmsDown(EnVali* enVali, PlayState* play);
+void EnVali_Burnt(EnVali* enVali, PlayState* play);
+void EnVali_Stunned(EnVali* enVali, PlayState* play);
+void EnVali_Frozen(EnVali* enVali, PlayState* play);
+void EnVali_ReturnToLurk(EnVali* enVali, PlayState* play);
 void EnVali_Lurk(EnVali* enVali, PlayState* play);
 }
 
@@ -491,24 +513,52 @@ static void AnimateDarkLink(Actor* actor) {
     }
 }
 
-static u16 GetDekuBabaPhase(Actor* actor) {
-    EnDekubabaActionFunc actionFunc = ((EnDekubaba*)actor)->actionFunc;
-    if (actionFunc == EnDekubaba_Wait) {
-        return 0;
+// For enemies whose actions are sent as the phase. Actions not in the list (cutscenes, waiting out of sight) are sent
+// as unknown and leave the puppet's own action alone: an action of another part could crash it once it takes over, like
+// a sister's (BossTw_TurnToPlayer) does on the merged Twinrova, who has no other sister.
+#define COOP_PHASE_UNKNOWN 0xFF
+
+template <typename T, size_t N, typename F> static u16 GetActionPhase(T (&actions)[N], F actionFunc) {
+    for (u8 i = 0; i < N; i++) {
+        if (actions[i] == actionFunc) {
+            return i;
+        }
     }
-    return actionFunc == EnDekubaba_PrunedSomersault ? 2 : 1;
+    return COOP_PHASE_UNKNOWN;
+}
+
+template <typename T, size_t N> static T GetPhaseAction(T (&actions)[N], u16 phase) {
+    return phase < N ? actions[phase] : nullptr;
+}
+
+template <typename T, size_t N, typename F> static void SetPhaseAction(T (&actions)[N], F& actionFunc, u16 phase) {
+    if (phase < N) {
+        actionFunc = actions[phase];
+    }
+}
+
+// Its death (which drops items) and the Deku Stick it may leave come from the authority's game, see below
+static const EnDekubabaActionFunc sDekuBabaActions[] = {
+    EnDekubaba_Wait,     EnDekubaba_Grow,
+    EnDekubaba_Retract,  EnDekubaba_DecideLunge,
+    EnDekubaba_Lunge,    EnDekubaba_PrepareLunge,
+    EnDekubaba_PullBack, EnDekubaba_Recover,
+    EnDekubaba_Hit,      EnDekubaba_StunnedVertical,
+    EnDekubaba_Sway,     EnDekubaba_PrunedSomersault,
+};
+
+static u16 GetDekuBabaPhase(Actor* actor) {
+    return GetActionPhase(sDekuBabaActions, ((EnDekubaba*)actor)->actionFunc);
 }
 
 static void SetDekuBabaPhase(Actor* actor, u16 phase) {
-    static const EnDekubabaActionFunc sPhaseActions[] = { EnDekubaba_Wait, EnDekubaba_Lunge,
-                                                          EnDekubaba_PrunedSomersault };
-    ((EnDekubaba*)actor)->actionFunc = sPhaseActions[phase < ARRAY_COUNT(sPhaseActions) ? phase : 1];
+    SetPhaseAction(sDekuBabaActions, ((EnDekubaba*)actor)->actionFunc, phase);
 }
 
 // A Deku Baba cut off at the stem turns into a Deku Stick to pick up, which isn't an enemy anymore. Everyone gets the
 // stick, and once one player takes it, it's gone for everyone (see CoopActors.cpp).
 static bool OnDekuBabaAuthorityGone(Actor* actor) {
-    if (actor->colChkInfo.health != 0 || GetDekuBabaPhase(actor) != 2) {
+    if (actor->colChkInfo.health != 0 || ((EnDekubaba*)actor)->actionFunc != EnDekubaba_PrunedSomersault) {
         return false;
     }
 
@@ -530,21 +580,30 @@ static void SetFloormasterPhase(Actor* actor, u16 phase) {
 }
 
 // A Flare Dancer's fire is drawn differently while it comes back
+static const EnFdActionFunc sFlareDancerActions[] = {
+    EnFd_Reappear, EnFd_SpinAndGrow, EnFd_JumpToGround, EnFd_Land, EnFd_SpinAndSpawnFire, EnFd_Run, EnFd_WaitForCore,
+};
+
 static u16 GetFlareDancerPhase(Actor* actor) {
-    return ((EnFd*)actor)->actionFunc == EnFd_Reappear ? 1 : 0;
+    return GetActionPhase(sFlareDancerActions, ((EnFd*)actor)->actionFunc);
 }
 
 static void SetFlareDancerPhase(Actor* actor, u16 phase) {
-    ((EnFd*)actor)->actionFunc = phase == 1 ? EnFd_Reappear : EnFd_Run;
+    SetPhaseAction(sFlareDancerActions, ((EnFd*)actor)->actionFunc, phase);
 }
 
-// A Bari only shows its lightning while floating around
+// A Bari only shows its lightning while floating around. Splitting up when it dies comes from the authority's game.
+static const EnValiActionFunc sBariActions[] = {
+    EnVali_Lurk,         EnVali_DropAppear, EnVali_FloatIdle, EnVali_Attacked, EnVali_Retaliate,
+    EnVali_MoveArmsDown, EnVali_Burnt,      EnVali_Stunned,   EnVali_Frozen,   EnVali_ReturnToLurk,
+};
+
 static u16 GetBariPhase(Actor* actor) {
-    return ((EnVali*)actor)->actionFunc == EnVali_FloatIdle ? 1 : 0;
+    return GetActionPhase(sBariActions, ((EnVali*)actor)->actionFunc);
 }
 
 static void SetBariPhase(Actor* actor, u16 phase) {
-    ((EnVali*)actor)->actionFunc = phase == 1 ? EnVali_FloatIdle : EnVali_Lurk;
+    SetPhaseAction(sBariActions, ((EnVali*)actor)->actionFunc, phase);
 }
 
 // A Poe is drawn differently while dying, and then turns into a soul to catch in a bottle, which isn't an enemy
@@ -603,17 +662,11 @@ static CoopBossFight GetBossGomaFight(Actor* actor) {
 }
 
 static u16 GetBossGomaPhase(Actor* actor) {
-    BossGomaActionFunc actionFunc = ((BossGoma*)actor)->actionFunc;
-    for (u8 i = 0; i < ARRAY_COUNT(sBossGomaFightActions); i++) {
-        if (sBossGomaFightActions[i] == actionFunc) {
-            return i;
-        }
-    }
-    return 0;
+    return GetActionPhase(sBossGomaFightActions, ((BossGoma*)actor)->actionFunc);
 }
 
 static void SetBossGomaPhase(Actor* actor, u16 phase) {
-    ((BossGoma*)actor)->actionFunc = sBossGomaFightActions[phase < ARRAY_COUNT(sBossGomaFightActions) ? phase : 0];
+    SetPhaseAction(sBossGomaFightActions, ((BossGoma*)actor)->actionFunc, phase);
 }
 
 // The same as her own death in BossGoma_UpdateHit
@@ -622,20 +675,6 @@ static void DefeatBossGoma(Actor* actor) {
     BossGoma_SetupDefeated((BossGoma*)actor, gPlayState);
     Enemy_StartFinishingBlow(gPlayState, actor);
     GameInteractor_ExecuteOnBossDefeat(actor);
-}
-
-// For bosses whose actions are sent as the phase
-template <typename T, size_t N, typename F> static u16 GetActionPhase(T (&actions)[N], F actionFunc) {
-    for (u8 i = 0; i < N; i++) {
-        if (actions[i] == actionFunc) {
-            return i;
-        }
-    }
-    return 0;
-}
-
-template <typename T, size_t N> static T GetPhaseAction(T (&actions)[N], u16 phase) {
-    return actions[phase < N ? phase : 0];
 }
 
 // King Dodongo, whose health is a field of his own (see GetCoopHealth)
@@ -1121,9 +1160,9 @@ static u16 GetBongoPhase(Actor* actor) {
 static void SetBongoPhase(Actor* actor, u16 phase) {
     BossSst* part = (BossSst*)actor;
     if (actor->params == BONGO_HEAD) {
-        part->actionFunc = GetPhaseAction(sBongoHeadActions, phase);
+        SetPhaseAction(sBongoHeadActions, part->actionFunc, phase);
     } else {
-        part->actionFunc = GetPhaseAction(sBongoHandActions, phase & 0xFF);
+        SetPhaseAction(sBongoHandActions, part->actionFunc, phase & 0xFF);
         gBossSstHandState[actor->params] = phase >> 8;
     }
 }
@@ -1299,7 +1338,7 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
       nullptr,
       { STATE_RANGE(BossDodongo, unk_196, cutsceneCamera), STATE_RANGE(BossDodongo, unk_1B6, unk_25C) },
       [](Actor* actor) { return GetActionPhase(sKingDodongoActions, ((BossDodongo*)actor)->actionFunc); },
-      [](Actor* actor, u16 phase) { ((BossDodongo*)actor)->actionFunc = GetPhaseAction(sKingDodongoActions, phase); },
+      [](Actor* actor, u16 phase) { SetPhaseAction(sKingDodongoActions, ((BossDodongo*)actor)->actionFunc, phase); },
       nullptr,
       COOP_PUPPET_SPAWN_NONE,
       GetKingDodongoFight,
@@ -1315,9 +1354,7 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
       nullptr,
       { STATE_RANGE(BossGanondrof, work, killActor), STATE_RANGE(BossGanondrof, returnCount, spearTip) },
       [](Actor* actor) { return GetActionPhase(sPhantomGanonActions, ((BossGanondrof*)actor)->actionFunc); },
-      [](Actor* actor, u16 phase) {
-          ((BossGanondrof*)actor)->actionFunc = GetPhaseAction(sPhantomGanonActions, phase);
-      },
+      [](Actor* actor, u16 phase) { SetPhaseAction(sPhantomGanonActions, ((BossGanondrof*)actor)->actionFunc, phase); },
       nullptr,
       COOP_PUPPET_SPAWN_AS_CHILD,
       GetPhantomGanonPartFight,
@@ -1332,7 +1369,7 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
         STATE_RANGE(EnfHG, gallopTimer, cutsceneState), STATE_RANGE(EnfHG, timers, unk_1E2),
         STATE_RANGE(EnfHG, warpColorFilterR, actionFunc) },
       [](Actor* actor) { return GetActionPhase(sPhantomHorseActions, ((EnfHG*)actor)->actionFunc); },
-      [](Actor* actor, u16 phase) { ((EnfHG*)actor)->actionFunc = GetPhaseAction(sPhantomHorseActions, phase); },
+      [](Actor* actor, u16 phase) { SetPhaseAction(sPhantomHorseActions, ((EnfHG*)actor)->actionFunc, phase); },
       nullptr,
       COOP_PUPPET_SPAWN_NONE,
       GetPhantomGanonPartFight,
@@ -1349,7 +1386,7 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
         STATE_RANGE(BossGanon, unk_284, unk_2D4), STATE_RANGE(BossGanon, triforcePos, unk_2EC),
         STATE_FIELD(BossGanon, unk_508) },
       [](Actor* actor) { return GetActionPhase(sGanondorfActions, ((BossGanon*)actor)->actionFunc); },
-      [](Actor* actor, u16 phase) { ((BossGanon*)actor)->actionFunc = GetPhaseAction(sGanondorfActions, phase); },
+      [](Actor* actor, u16 phase) { SetPhaseAction(sGanondorfActions, ((BossGanon*)actor)->actionFunc, phase); },
       nullptr,
       COOP_PUPPET_SPAWN_NONE,
       GetGanondorfFight,
@@ -1364,7 +1401,7 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
       { STATE_RANGE(BossTw, work, fogR), STATE_FIELD(BossTw, csState1), STATE_FIELD(BossTw, targetPos),
         STATE_RANGE(BossTw, rotateSpeed, twinrovaStun), STATE_RANGE(BossTw, visible, skelAnime) },
       [](Actor* actor) { return GetActionPhase(sTwinrovaActions, ((BossTw*)actor)->actionFunc); },
-      [](Actor* actor, u16 phase) { ((BossTw*)actor)->actionFunc = GetPhaseAction(sTwinrovaActions, phase); },
+      [](Actor* actor, u16 phase) { SetPhaseAction(sTwinrovaActions, ((BossTw*)actor)->actionFunc, phase); },
       nullptr,
       COOP_PUPPET_SPAWN_NONE,
       GetTwinrovaFight,
@@ -1380,7 +1417,7 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
       [](Actor* actor) { return actor->params != BOSSVA_DOOR; },
       { STATE_RANGE(BossVa, onCeiling, armTip), STATE_RANGE(BossVa, unk_1E4, effectPos) },
       [](Actor* actor) { return GetActionPhase(sBarinadeActions, ((BossVa*)actor)->actionFunc); },
-      [](Actor* actor, u16 phase) { ((BossVa*)actor)->actionFunc = GetPhaseAction(sBarinadeActions, phase); },
+      [](Actor* actor, u16 phase) { SetPhaseAction(sBarinadeActions, ((BossVa*)actor)->actionFunc, phase); },
       OnBarinadePartGone,
       COOP_PUPPET_SPAWN_AS_CHILD,
       GetBarinadeFight,
@@ -1401,7 +1438,7 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
         STATE_RANGE(BossGanon2, unk_310, unk_314), STATE_RANGE(BossGanon2, unk_316, unk_334),
         STATE_RANGE(BossGanon2, unk_338, unk_35C) },
       [](Actor* actor) { return GetActionPhase(sGanonActions, ((BossGanon2*)actor)->actionFunc); },
-      [](Actor* actor, u16 phase) { ((BossGanon2*)actor)->actionFunc = GetPhaseAction(sGanonActions, phase); },
+      [](Actor* actor, u16 phase) { SetPhaseAction(sGanonActions, ((BossGanon2*)actor)->actionFunc, phase); },
       nullptr,
       COOP_PUPPET_SPAWN_NONE,
       GetGanonFight,
@@ -1440,7 +1477,7 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
         CoopStateField{ offsetof(BossFd, work) + 5 * sizeof(s16), (BFD_SHORT_COUNT - 5) * sizeof(s16) },
         STATE_RANGE(BossFd, timers, targetPosition), STATE_RANGE(BossFd, targetPosition, bodySegsRot) },
       [](Actor* actor) { return GetActionPhase(sVolvagiaActions, ((BossFd*)actor)->actionFunc); },
-      [](Actor* actor, u16 phase) { ((BossFd*)actor)->actionFunc = GetPhaseAction(sVolvagiaActions, phase); },
+      [](Actor* actor, u16 phase) { SetPhaseAction(sVolvagiaActions, ((BossFd*)actor)->actionFunc, phase); },
       nullptr,
       COOP_PUPPET_SPAWN_NONE,
       GetVolvagiaFight,
@@ -1453,7 +1490,7 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
       nullptr,
       { STATE_RANGE(BossFd2, work, headPos) },
       [](Actor* actor) { return GetActionPhase(sVolvagiaHoleActions, ((BossFd2*)actor)->actionFunc); },
-      [](Actor* actor, u16 phase) { ((BossFd2*)actor)->actionFunc = GetPhaseAction(sVolvagiaHoleActions, phase); },
+      [](Actor* actor, u16 phase) { SetPhaseAction(sVolvagiaHoleActions, ((BossFd2*)actor)->actionFunc, phase); },
       nullptr,
       COOP_PUPPET_SPAWN_NONE,
       GetVolvagiaHoleFight,

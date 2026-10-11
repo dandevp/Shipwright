@@ -55,6 +55,9 @@ enemies between teammates, so they can play through the same areas together.
     meanwhile.
   - Taking over, enemies go on from exactly where the authority's last were, standing (no leftover speed from before
     they followed the authority's). What they were doing comes from their own state, which may be older.
+  - The bosses, Deku Babas, Flare Dancers and Baris go on with the authority's action too. One the authority is in
+    that isn't passed on (cutscenes, deaths that spawn things) leaves the taking-over player's own action as it was,
+    instead of putting in another one: the merged Twinrova got one of her sisters' that way and crashed the game.
 - Hitting a puppet hits the authority's enemy, with its own damage table, reaction and death. That goes for what you
   shoot, throw or set off too: arrows, slingshot seeds, bombs, and a Deku Nut's flash stunning it.
 - On the authority, enemies go after the most dangerous player in the room: whoever dealt them the most damage. While
