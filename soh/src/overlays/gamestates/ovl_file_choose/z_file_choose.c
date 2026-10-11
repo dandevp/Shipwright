@@ -944,7 +944,9 @@ void FileChoose_UpdateArchipelagoMenu(GameState* thisx) {
         SohFileSelect_ShowPresetModal();
         Audio_PlaySfxGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
                              &gSfxDefaultFreqAndVolScale, &gSfxDefaultReverb);
+        SetArchipelagoParsing(true);
         ParseArchipelago();
+        SetArchipelagoParsing(false);
         FileChoose_StartNameEntryFromMenu(this);
     } else if (this->archipelagoIndex == ASM_CHANGE_CONNECTION_INFO) {
         Audio_PlaySfxGeneral(NA_SE_SY_FSEL_DECIDE_L, &gSfxDefaultPos, 4, &gSfxDefaultFreqAndVolScale,
