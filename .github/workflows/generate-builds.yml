@@ -249,7 +249,7 @@ jobs:
       if: failure()
       run: |
         if (Test-Path build.log) {
-          Select-String -Path build.log -Pattern '(fatal )?error [A-Z]+[0-9]+|CMake Error|ninja: build stopped|FAILED:' |
+          Select-String -Path build.log -Pattern '(fatal )?error [A-Z]+[0-9]+|warning C[0-9]+|CMake Error|ninja: build stopped|FAILED:' |
             Select-Object -First 40 |
             ForEach-Object { Write-Output "::error::$($_.Line.Trim())" }
         }
