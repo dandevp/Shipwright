@@ -64,8 +64,10 @@ bool Anchor::IsCoopPayloadForThisScene(nlohmann::json& payload) {
 }
 
 void Anchor::SendPacket_CoopSceneFlag(u8 coopFlagType, s16 flag, bool set) {
-    // Flags applied from a packet must not be echoed back
-    if (isProcessingIncomingPacket) {
+    // Flags applied from a packet must not be echoed back. Nor the ones the scene sets up from our save as it loads
+    // (like the Lake Hylia water switch from the water level we left it at), we take over the live ones of teammates
+    // already here instead (COOP_SCENE_SYNC).
+    if (isProcessingIncomingPacket || coopSceneLoading) {
         return;
     }
 

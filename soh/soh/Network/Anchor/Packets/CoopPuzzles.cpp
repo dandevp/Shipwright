@@ -9,6 +9,8 @@ extern "C" {
 #include "macros.h"
 #include "functions.h"
 #include "src/overlays/actors/ovl_Bg_Jya_Cobra/z_bg_jya_cobra.h"
+#include "src/overlays/actors/ovl_En_Kanban/z_en_kanban.h"
+#include "src/overlays/actors/ovl_Obj_Switch/z_obj_switch.h"
 #include "src/overlays/actors/ovl_Obj_Oshihiki/z_obj_oshihiki.h"
 #include "src/overlays/actors/ovl_Obj_Syokudai/z_obj_syokudai.h"
 extern PlayState* gPlayState;
@@ -21,14 +23,24 @@ void ObjOshihiki_OnScene(ObjOshihiki* objOshihiki, PlayState* play);
 void ObjOshihiki_Push(ObjOshihiki* objOshihiki, PlayState* play);
 void ObjOshihiki_SetupFall(ObjOshihiki* objOshihiki, PlayState* play);
 void ObjOshihiki_SetupPush(ObjOshihiki* objOshihiki, PlayState* play);
+void ObjSwitch_FloorUp(ObjSwitch* objSwitch, PlayState* play);
+void ObjSwitch_FloorPressInit(ObjSwitch* objSwitch);
+void ObjSwitch_FloorDown(ObjSwitch* objSwitch, PlayState* play);
+void ObjSwitch_FloorReleaseInit(ObjSwitch* objSwitch);
 }
 
 /**
- * COOP_TORCH_LIT, COOP_BLOCK_PUSH, COOP_BLOCK_SETTLED, COOP_STATUE_TURN, COOP_STATUE_SETTLED
+ * COOP_TORCH_LIT, COOP_SIGN_CUT, COOP_BLOCK_PUSH, COOP_BLOCK_SETTLED, COOP_STATUE_TURN, COOP_STATUE_SETTLED
  *
  * Torches: when a teammate in the room lights a torch, ours is lit too, by handing it the hit of a fire arrow. The
  * torch then lights itself as usual, including counting towards its group, so lighting a set of timed torches together
  * works and the puzzle's switch flag gets set by whoever lights the last one.
+ *
+ * Signs: when a teammate cuts a piece off a sign, ours is cut the same way, by handing it the hit of their sword (or
+ * whatever they hit it with) along with their swing and where they stood. The piece then flies off by itself.
+ *
+ * Toggle floor switches (one press turns them on, the next off) only go down or up when they're stepped on, so when a
+ * teammate toggles one, ours is moved to match its flag.
  *
  * Push blocks: when a teammate starts pushing a block, our copy is pushed the same way, so it slides (and falls) by
  * itself. When it comes to rest its position is shared once more, to correct it if the two copies got out of step.
@@ -167,6 +179,146 @@ void Anchor::HandlePacket_CoopTorchLit(nlohmann::json payload) {
     }
 
     LightCoopTorch(FindCoopActor(payload.at("actor").get<CoopActorIdentity>()));
+}
+
+// MARK: - Signs
+
+#define ENKANBAN_STANDING 0 // A sign's actionState while it stands (ENKANBAN_SIGN)
+#define SIGN_CUT_TIMEOUT_FRAMES 30
+
+// Cuts teammates made on their copy of a sign, waiting to be made on ours
+struct CoopSignCuts {
+    struct Cut {
+        u32 dmgFlags;
+        s8 meleeWeaponAnimation; // Which way the sword swung, which decides the piece cut off
+        s16 yaw;                 // From the sign to the teammate, the piece flies away from them
+        u32 expiresAtFrame;
+    };
+    std::vector<Cut> cuts;
+};
+static ObjectExtension::Register<CoopSignCuts> CoopSignCutsRegister;
+
+// The sign whose update is making a teammate's cut, and our player's swing to put back after it
+static Actor* sCoopCuttingSign = nullptr;
+static s8 sCoopSavedMeleeWeaponAnimation;
+
+static void EndCoopSignCut() {
+    if (sCoopCuttingSign != nullptr) {
+        GET_PLAYER(gPlayState)->meleeWeaponAnimation = sCoopSavedMeleeWeaponAnimation;
+        sCoopCuttingSign = nullptr;
+    }
+}
+
+// Pieces cut off a sign are spawned where it stands, so they're told apart by their params
+static Actor* FindCoopSign(const CoopActorIdentity& identity) {
+    for (s32 i = 0; i < ACTORCAT_MAX; i++) {
+        for (Actor* actor = gPlayState->actorCtx.actorLists[i].head; actor != NULL; actor = actor->next) {
+            if (actor->update != NULL && actor->id == ACTOR_EN_KANBAN && actor->params != ENKANBAN_PIECE &&
+                GetCoopActorIdentity(actor) == identity) {
+                return actor;
+            }
+        }
+    }
+    return nullptr;
+}
+
+// Called before a sign updates. Its update cuts a piece off when it was hit (and the previous cut is over), working out
+// which piece from our player's swing and where they stand, so a teammate's cut is made with theirs.
+void Anchor::OnCoopSignUpdating(Actor* actor) {
+    EndCoopSignCut();
+    EnKanban* sign = (EnKanban*)actor;
+    if (actor->params == ENKANBAN_PIECE || sign->actionState != ENKANBAN_STANDING || !IsCoopSyncActive() ||
+        sign->invincibilityTimer > 1) {
+        return;
+    }
+
+    // Our own hit, cut in our game this frame
+    if (sign->collider.base.acFlags & AC_HIT) {
+        std::vector<uint32_t> peers = GetCoopPeers(true);
+        if (!IsCoopOwnedByUs(sign->collider.base.ac) || sign->collider.info.acHitInfo == nullptr || peers.empty()) {
+            return;
+        }
+        nlohmann::json payload = PrepCoopPayload(COOP_SIGN_CUT);
+        payload["actor"] = GetCoopActorIdentity(actor);
+        payload["dmgFlags"] = sign->collider.info.acHitInfo->toucher.dmgFlags;
+        payload["swing"] = GET_PLAYER(gPlayState)->meleeWeaponAnimation;
+        payload["yaw"] = actor->yawTowardsPlayer;
+        for (uint32_t clientId : peers) {
+            payload["targetClientId"] = clientId;
+            SendJsonToRemote(payload);
+        }
+        return;
+    }
+
+    CoopSignCuts* pending = ObjectExtension::GetInstance().Get<CoopSignCuts>(actor);
+    if (pending == nullptr) {
+        return;
+    }
+    std::erase_if(pending->cuts, [](const auto& cut) { return gPlayState->gameplayFrames > cut.expiresAtFrame; });
+    if (pending->cuts.empty()) {
+        return;
+    }
+
+    CoopSignCuts::Cut cut = pending->cuts.front();
+    pending->cuts.erase(pending->cuts.begin());
+    static ColliderInfo sTeammateHitInfo = {};
+    sTeammateHitInfo.toucher.dmgFlags = cut.dmgFlags;
+    sign->collider.base.acFlags |= AC_HIT;
+    sign->collider.info.acHitInfo = &sTeammateHitInfo;
+    actor->yawTowardsPlayer = cut.yaw;
+    Player* player = GET_PLAYER(gPlayState);
+    sCoopSavedMeleeWeaponAnimation = player->meleeWeaponAnimation;
+    player->meleeWeaponAnimation = cut.meleeWeaponAnimation;
+    sCoopCuttingSign = actor;
+}
+
+void Anchor::OnCoopSignUpdated(Actor* actor) {
+    if (actor == sCoopCuttingSign) {
+        EndCoopSignCut();
+    }
+}
+
+void Anchor::HandlePacket_CoopSignCut(nlohmann::json payload) {
+    if (!IsCoopPayloadForThisScene(payload) || payload.at("roomNum").get<s8>() != gPlayState->roomCtx.curRoom.num) {
+        return;
+    }
+
+    Actor* sign = FindCoopSign(payload.at("actor").get<CoopActorIdentity>());
+    s8 swing = payload.at("swing").get<s8>();
+    if (sign == nullptr || swing < 0 || swing >= PLAYER_MWA_MAX) {
+        return;
+    }
+
+    CoopSignCuts* pending = ObjectExtension::GetInstance().Get<CoopSignCuts>(sign);
+    if (pending == nullptr) {
+        ObjectExtension::GetInstance().Set<CoopSignCuts>(sign, CoopSignCuts{});
+        pending = ObjectExtension::GetInstance().Get<CoopSignCuts>(sign);
+    }
+    pending->cuts.push_back({ payload.at("dmgFlags").get<u32>(), swing, payload.at("yaw").get<s16>(),
+                              gPlayState->gameplayFrames + SIGN_CUT_TIMEOUT_FRAMES });
+}
+
+// MARK: - Toggle switches
+
+// Called after a floor switch updated. A toggle switch (OBJSWITCH_SUBTYPE_FLOOR_1) whose flag a teammate changed is
+// pressed down or let up to match, the way it would be if it had been toggled in our game. Like the Lake Hylia water
+// switch: otherwise ours would stay up with the water already lowered, and our next press would only bring it down.
+void Anchor::UpdateCoopToggleSwitch(Actor* actor) {
+    ObjSwitch* floorSwitch = (ObjSwitch*)actor;
+    s32 type = actor->params & 7;
+    if (!IsCoopSyncActive() || (type != OBJSWITCH_TYPE_FLOOR && type != OBJSWITCH_TYPE_FLOOR_RUSTY) ||
+        ((actor->params >> 4) & 7) != OBJSWITCH_SUBTYPE_FLOOR_1) {
+        return;
+    }
+
+    bool isOn = Flags_GetSwitch(gPlayState, (actor->params >> 8) & 0x3F);
+    if (isOn && floorSwitch->actionFunc == ObjSwitch_FloorUp) {
+        floorSwitch->cooldownOn = false;
+        ObjSwitch_FloorPressInit(floorSwitch);
+    } else if (!isOn && floorSwitch->actionFunc == ObjSwitch_FloorDown) {
+        floorSwitch->cooldownOn = false;
+        ObjSwitch_FloorReleaseInit(floorSwitch);
+    }
 }
 
 // MARK: - Push blocks

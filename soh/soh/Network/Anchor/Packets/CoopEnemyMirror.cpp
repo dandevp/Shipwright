@@ -1646,6 +1646,8 @@ struct CoopPuppet {
     f32 playSpeed;
     f32 endFrame;
     u8 mode;
+    u32 flags;     // The authority's PUPPET_FLAGS
+    s8 targetMode; // How far it can be Z-targeted from
     bool hasNewFrame = false;
     std::vector<std::pair<Actor*, u32>> recentAttackers; // Our weapons touching it, and the last frame they did
     bool hasColliderOffsets = false;
@@ -1665,6 +1667,7 @@ struct CoopPuppet {
     u16 phaseBefore = 0;          // Before its own update, for getLocalEvent
     u32 holdUntilFrame = 0;       // After a local event, until the authority's boss has caught up with it
     bool hasCorrected = false;
+    u32 correctedFrame;
     Vec3f correctedPos; // Where it was left after the last correction, to tell how far it moved by itself since
     Vec3s correctedShapeRot;
     Vec3s correctedWorldRot;
@@ -1678,6 +1681,13 @@ static ObjectExtension::Register<CoopChildCount> CoopChildCountRegister;
 // Actors our player spawned, directly or through something they spawned (see OnCoopActorSpawned)
 struct CoopOwnedByUs {};
 static ObjectExtension::Register<CoopOwnedByUs> CoopOwnedByUsRegister;
+
+// Our player, or something they swing, shot, threw or set off
+bool IsCoopOwnedByUs(Actor* actor) {
+    Actor* player = &GET_PLAYER(gPlayState)->actor;
+    return actor != nullptr &&
+           (actor == player || actor->parent == player || ObjectExtension::GetInstance().Has<CoopOwnedByUs>(actor));
+}
 
 static ObjectExtension::Register<CoopPuppet> CoopPuppetRegister;
 
@@ -1702,6 +1712,13 @@ struct CoopEnemyTarget {
 static ObjectExtension::Register<CoopEnemyTarget> CoopEnemyTargetRegister;
 
 #define TARGET_SWITCH_DISTANCE 100.0f // How much closer another player has to be to draw the enemy's attention
+
+// Flags enemies turn on and off in their actions, which a puppet doesn't run: whether it can be Z-targeted (an Iron
+// Knuckle once it wakes up, a Deku Baba while it's out of the ground), whether the hookshot pulls it in, and whether
+// it's only seen through the Lens of Truth
+#define PUPPET_FLAGS                                                                                      \
+    (ACTOR_FLAG_ATTENTION_ENABLED | ACTOR_FLAG_HOSTILE | ACTOR_FLAG_FRIENDLY | ACTOR_FLAG_REACT_TO_LENS | \
+     ACTOR_FLAG_HOOKSHOT_PULLS_ACTOR | ACTOR_FLAG_HOOKSHOT_PULLS_PLAYER | ACTOR_FLAG_LOCK_ON_DISABLED)
 
 static const CoopEnemyAdapter* FindCoopEnemyAdapter(Actor* actor) {
     for (const CoopEnemyAdapter& adapter : sCoopEnemyAdapters) {
@@ -1801,6 +1818,25 @@ static bool IsCoopMirroredObject(Actor* actor) {
 // enemies stood still. When two claims meet (like when entering a room together), the lowest client id keeps it.
 #define AUTHORITY_CLAIM_DELAY_FRAMES 30
 
+// The lowest client id among the responsive peers in our room claiming to run it, UINT32_MAX if none
+uint32_t Anchor::FindCoopAuthorityClaim(bool& hasPeers) {
+    auto now = std::chrono::steady_clock::now();
+    uint32_t authority = UINT32_MAX;
+    hasPeers = false;
+    for (uint32_t clientId : GetCoopPeers(true)) {
+        AnchorClient& client = clients[clientId];
+        if (now - client.lastPlayerUpdate >= AUTHORITY_UNRESPONSIVE_TIME) {
+            continue;
+        }
+
+        hasPeers = true;
+        if (client.claimsCoopAuthority) {
+            authority = std::min(authority, clientId);
+        }
+    }
+    return authority;
+}
+
 void Anchor::UpdateCoopRoomAuthority() {
     auto now = std::chrono::steady_clock::now();
     if (now - coopLastActiveTime > AUTHORITY_UNRESPONSIVE_TIME) {
@@ -1817,18 +1853,7 @@ void Anchor::UpdateCoopRoomAuthority() {
     }
 
     bool hasPeers = false;
-    uint32_t authority = UINT32_MAX;
-    for (uint32_t clientId : GetCoopPeers(true)) {
-        AnchorClient& client = clients[clientId];
-        if (now - client.lastPlayerUpdate >= AUTHORITY_UNRESPONSIVE_TIME) {
-            continue;
-        }
-
-        hasPeers = true;
-        if (client.claimsCoopAuthority) {
-            authority = std::min(authority, clientId);
-        }
-    }
+    uint32_t authority = FindCoopAuthorityClaim(hasPeers);
 
     // Without the room's boss, we have nothing to run for those who have it
     bool canClaim = !IsOwnBossLeftOut();
@@ -1843,21 +1868,32 @@ void Anchor::UpdateCoopRoomAuthority() {
     coopRoomAuthority = authority == UINT32_MAX ? 0 : authority;
 }
 
-// Called every frame, paused or not. The pause menu stops our enemies, and our player too, so teammates would only pass
-// us over once our PLAYER_UPDATE has been missing for AUTHORITY_UNRESPONSIVE_TIME, with the enemies standing still for
-// everyone meanwhile. Instead we hand the room over the moment we pause, and since our enemies stood still while
-// paused, we don't take it back afterwards, however short the pause was.
+static bool IsGamePaused() {
+    return gPlayState->pauseCtx.state != 0 || gPlayState->pauseCtx.debugState != 0;
+}
+
+// Called every frame, paused or not. The pause menu stops our player, so teammates would only pass us over once our
+// PLAYER_UPDATE has been missing for AUTHORITY_UNRESPONSIVE_TIME, with the enemies standing still for everyone
+// meanwhile. Instead we hand the room over the moment we pause (telling teammates we're paused, so their enemies leave
+// us alone), and don't take it back afterwards, however short the pause was. While paused, our enemies keep following
+// the teammate who runs the room now (see UpdateCoopWhilePaused).
 void Anchor::UpdateCoopPause() {
     if (!IsSaveLoaded()) {
         coopWasPaused = false;
         return;
     }
 
-    bool isPaused = gPlayState->pauseCtx.state != 0 || gPlayState->pauseCtx.debugState != 0;
-    if (isPaused && !coopWasPaused && coopClaimsAuthority) {
+    bool isPaused = IsGamePaused();
+    if (isPaused && !coopWasPaused) {
         coopClaimsAuthority = false;
         coopRoomFrames = 0;
         SendPacket_PlayerUpdate();
+    }
+    // UpdateCoopRoomAuthority doesn't run while paused (our player doesn't update)
+    if (isPaused && IsCoopSyncActive()) {
+        bool hasPeers;
+        uint32_t authority = FindCoopAuthorityClaim(hasPeers);
+        coopRoomAuthority = authority == UINT32_MAX ? 0 : authority;
     }
     coopWasPaused = isPaused;
 }
@@ -1979,6 +2015,8 @@ void Anchor::SendCoopEnemySnapshots() {
             enemy["end"] = skelAnime != nullptr ? skelAnime->endFrame : 0.0f;
             enemy["mode"] = skelAnime != nullptr ? skelAnime->mode : 0;
             enemy["scale"] = actor->scale;
+            enemy["flags"] = actor->flags & PUPPET_FLAGS;
+            enemy["targetMode"] = actor->targetMode;
             if (adapter->puppetSpawn != COOP_PUPPET_SPAWN_NONE) {
                 enemy["params"] = actor->params;
                 if (actor->parent != nullptr && (IsCoopEnemy(actor->parent) || IsCoopBoss(actor->parent))) {
@@ -2175,6 +2213,8 @@ void Anchor::HandlePacket_CoopEnemySnapshot(nlohmann::json payload) {
         puppet->playSpeed = enemy.at("speed").get<f32>();
         puppet->endFrame = enemy.at("end").get<f32>();
         puppet->mode = enemy.at("mode").get<u8>();
+        puppet->flags = enemy.value("flags", actor->flags & PUPPET_FLAGS);
+        puppet->targetMode = enemy.value("targetMode", actor->targetMode);
         puppet->hasNewFrame = true;
         puppet->state = enemy.value("state", std::vector<u8>{});
         puppet->phase = enemy.value("phase", (u16)0);
@@ -2401,6 +2441,20 @@ static void BeforeTwinrovaUpdate(Actor* actor) {
     }
 }
 
+// A tentacle grabs whoever is within its reach once its attack comes down (as in BossMo_Tentacle), and it can only grab
+// our own player. So while ours is within reach, it goes after ours rather than the player it targets: otherwise,
+// with a teammate as its target, it would never catch us however often it hits us.
+static bool GoesAfterMorphaTarget(Actor* actor) {
+    if (actor->params != BOSSMO_TENTACLE) {
+        return false;
+    }
+    BossMo* tent = (BossMo*)actor;
+    Player* player = GET_PLAYER(gPlayState);
+    Vec3f diff;
+    Math_Vec3f_Diff(&tent->tentPos[22], &player->actor.world.pos, &diff);
+    return fabsf(diff.y) >= 50.0f || Math_Vec3f_DistXYZ(&tent->tentPos[22], &player->actor.world.pos) >= 120.0f;
+}
+
 static const CoopBossAction sCoopBossActions[] = {
     { ACTOR_BOSS_GOMA, offsetof(BossGoma, actionFunc) },
     { ACTOR_BOSS_DODONGO, offsetof(BossDodongo, actionFunc) },
@@ -2415,7 +2469,7 @@ static const CoopBossAction sCoopBossActions[] = {
     // Bongo Bongo's hands (his head checks whether it can be hurt before its action, and doesn't go after anyone)
     { ACTOR_BOSS_SST, offsetof(BossSst, actionFunc), [](Actor* actor) { return actor->params != BONGO_HEAD; } },
     // Morpha's tentacles (her core moves by itself, not in an action)
-    { ACTOR_BOSS_MO, offsetof(BossMo, actionFunc), [](Actor* actor) { return actor->params == BOSSMO_TENTACLE; } },
+    { ACTOR_BOSS_MO, offsetof(BossMo, actionFunc), GoesAfterMorphaTarget },
 };
 
 typedef void (*CoopActionFunc)(Actor*, PlayState*);
@@ -2476,6 +2530,17 @@ static void UpdateWithTarget(Actor* actor, Player* target) {
     }
 }
 
+// A cutscene during the fight is one a boss started in our game, which only it ends again, giving the camera back and
+// letting our player move: a Morpha tentacle that let go of our player keeps its camera on them until they've landed
+// (MO_TENT_RETREAT). If the boss took over the authority's state meanwhile (the tentacle still holding a teammate in
+// the authority's game), it would skip that, leaving our player in the cutscene until the authority's let go too. So
+// the boss finishes it by itself. Its intro, defeat and Ganon being downed are cutscenes too, but then it isn't a
+// puppet anyway.
+static bool IsInBossCutscene(Actor* actor) {
+    const CoopEnemyAdapter* adapter = FindCoopEnemyAdapter(actor);
+    return adapter != nullptr && adapter->getBossFight != nullptr && gPlayState->csCtx.state != CS_STATE_IDLE;
+}
+
 // While a part of the boss holds our player (a hand, a tentacle), or our hookshot holds a part of it, all of it runs by
 // itself in our game, hits included (they still go to the authority too). What it does to our player, and how they get
 // away (cutting the tentacle by hitting the core, the hookshot pulling the core out), is in its own actions.
@@ -2490,7 +2555,7 @@ static bool IsCoopHeldLocally(Actor* actor) {
             return true;
         }
     }
-    return IsPulledByOurHookshot(actor);
+    return IsPulledByOurHookshot(actor) || IsInBossCutscene(actor);
 }
 
 // A puppet runs its own AI again: we took over the room (the authority paused or left), or the authority went quiet.
@@ -2529,6 +2594,10 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
         if (adapter->getBossFight(actor) != COOP_BOSS_FIGHTING) {
             return false;
         }
+        // Its defeat and cutscenes wait until we're back from the pause menu, they take over our player and camera
+        if (coopUpdatingWhilePaused && puppet->bossFight != COOP_BOSS_FIGHTING) {
+            return true;
+        }
         // Not while it holds our player, it lets go of them first (like Morpha's own death waits for that)
         if (puppet->bossFight == COOP_BOSS_DEFEATED && !IsCoopHeldLocally(actor)) {
             puppet->isReleased = true;
@@ -2564,7 +2633,6 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
     std::erase_if(puppet->recentAttackers,
                   [&](const auto& entry) { return frame - entry.second > PUPPET_HIT_CONTACT_GAP_FRAMES; });
     std::vector<Actor*> touchingAttackers;
-    Player* player = GET_PLAYER(gPlayState);
     for (size_t i = 0; i < adapter->hurtColliderOffsets.size(); i++) {
         Collider* collider = GetHurtCollider(actor, adapter, i);
         if (!(collider->acFlags & AC_HIT)) {
@@ -2573,8 +2641,7 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
 
         // Our sword, or something we shot or threw
         Actor* attacker = collider->ac;
-        if (attacker == nullptr || (attacker != &player->actor && attacker->parent != &player->actor &&
-                                    !ObjectExtension::GetInstance().Has<CoopOwnedByUs>(attacker))) {
+        if (!IsCoopOwnedByUs(attacker)) {
             continue;
         }
 
@@ -2665,6 +2732,8 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
     actor->world.rot.y = puppet->worldRotY;
     SetCoopHealth(actor, puppet->health);
     actor->scale = puppet->scale;
+    actor->flags = (actor->flags & ~PUPPET_FLAGS) | (puppet->flags & PUPPET_FLAGS);
+    actor->targetMode = puppet->targetMode;
     actor->focus.pos = { actor->world.pos.x + puppet->focusOffset.x, actor->world.pos.y + puppet->focusOffset.y,
                          actor->world.pos.z + puppet->focusOffset.z };
 
@@ -2722,6 +2791,22 @@ bool IsCoopDrivenPuppet(Actor* actor) {
 #define BOSS_EVENT_HOLD_FRAMES 10
 #define DRIVEN_SNAP_DISTANCE 150.0f // Further off than this (like popping out of another hole), it jumps there
 
+// Volvagia's body and mane trail behind her head through the positions it went through. When her head jumps to where
+// the authority's is (like after coming back from a pause, when another player ran the fight meanwhile), they're moved
+// along with it, rather than stretching across the room from where she was.
+static void ShiftVolvagiaBody(Actor* actor, Vec3f shift) {
+    BossFd* volvagia = (BossFd*)actor;
+    for (Vec3f& pos : volvagia->bodySegsPos) {
+        Math_Vec3f_Sum(&pos, &shift, &pos);
+    }
+    for (BossFdMane* mane : { &volvagia->centerMane, &volvagia->rightMane, &volvagia->leftMane }) {
+        for (Vec3f& pos : mane->pos) {
+            Math_Vec3f_Sum(&pos, &shift, &pos);
+        }
+        Math_Vec3f_Sum(&mane->head, &shift, &mane->head);
+    }
+}
+
 static s16 NudgeAngle(s16 angle, s16 target) {
     return angle + (s16)((s16)(target - angle) * OBJECT_CORRECTION_RATE);
 }
@@ -2765,7 +2850,11 @@ void Anchor::CorrectCoopDrivenPuppet(Actor* actor) {
     }
 
     // The authority's kept moving since the snapshot, the same way ours did, so move the target along with ours.
-    // Otherwise the correction would keep dragging it back between snapshots.
+    // Otherwise the correction would keep dragging it back between snapshots. Not if it wasn't a puppet last frame (we
+    // ran the fight in between), it moved by itself since then.
+    if (puppet->hasCorrected && puppet->correctedFrame + 1 != gPlayState->gameplayFrames) {
+        puppet->hasCorrected = false;
+    }
     if (puppet->hasCorrected) {
         puppet->targetPos.x += actor->world.pos.x - puppet->correctedPos.x;
         puppet->targetPos.y += actor->world.pos.y - puppet->correctedPos.y;
@@ -2779,6 +2868,9 @@ void Anchor::CorrectCoopDrivenPuppet(Actor* actor) {
     Vec3f diff = { puppet->targetPos.x - actor->world.pos.x, puppet->targetPos.y - actor->world.pos.y,
                    puppet->targetPos.z - actor->world.pos.z };
     if (SQ(diff.x) + SQ(diff.y) + SQ(diff.z) > SQ(DRIVEN_SNAP_DISTANCE)) {
+        if (actor->id == ACTOR_BOSS_FD) {
+            ShiftVolvagiaBody(actor, diff);
+        }
         actor->world.pos = puppet->targetPos;
         actor->shape.rot = puppet->shapeRot;
         actor->world.rot = puppet->worldRot;
@@ -2793,6 +2885,7 @@ void Anchor::CorrectCoopDrivenPuppet(Actor* actor) {
     }
 
     puppet->hasCorrected = true;
+    puppet->correctedFrame = gPlayState->gameplayFrames;
     puppet->correctedPos = actor->world.pos;
     puppet->correctedShapeRot = actor->shape.rot;
     puppet->correctedWorldRot = actor->world.rot;
@@ -2940,7 +3033,8 @@ static Player* ChooseCoopEnemyTarget(Actor* actor, const std::vector<uint32_t>& 
     considerThreat(Anchor::Instance->ownClientId, GET_PLAYER(gPlayState));
     for (uint32_t clientId : peers) {
         AnchorClient& client = Anchor::Instance->clients[clientId];
-        if (client.player != nullptr && !(client.player->stateFlags1 & PLAYER_STATE1_DEAD) && !client.isBossLeftOut) {
+        if (client.player != nullptr && !(client.player->stateFlags1 & PLAYER_STATE1_DEAD) && !client.isBossLeftOut &&
+            !client.isPaused) {
             considerThreat(clientId, client.player);
         }
     }
@@ -2959,7 +3053,8 @@ static Player* ChooseCoopEnemyTarget(Actor* actor, const std::vector<uint32_t>& 
 
     for (uint32_t clientId : peers) {
         AnchorClient& client = Anchor::Instance->clients[clientId];
-        if (client.player == nullptr || (client.player->stateFlags1 & PLAYER_STATE1_DEAD) || client.isBossLeftOut) {
+        if (client.player == nullptr || (client.player->stateFlags1 & PLAYER_STATE1_DEAD) || client.isBossLeftOut ||
+            client.isPaused) {
             continue;
         }
 
@@ -3076,6 +3171,7 @@ struct CoopShotAdapter {
     bool (*hasEnded)(Actor* actor);
     void (*onFollow)(Actor* actor); // Its look while it follows another game's (its own update doesn't run)
     void (*onEnded)(Actor* actor, bool isAuthority); // When it ended in the game running it, for the others
+    size_t colliderOffset;                           // Its cylinder, which our player hits back
 };
 
 static bool IsEnergyBall(Actor* actor) {
@@ -3186,7 +3282,8 @@ static const std::vector<CoopShotAdapter> sCoopShotAdapters = {
       [](Actor* actor) { return ((EnFhgFire*)actor)->work[FHGFIRE_FIRE_MODE] == FHGFIRE_LIGHT_GREEN; },
       [](Actor* actor) { return ((EnFhgFire*)actor)->work[FHGFIRE_KILL_TIMER] != 0; },
       FollowEnergyBall,
-      EndEnergyBall },
+      EndEnergyBall,
+      offsetof(EnFhgFire, collider) },
     // Ganondorf's light ball, and the balls of his big magic attack, which are the same actor (and the same actor as
     // Ganondorf himself)
     { ACTOR_BOSS_GANON,
@@ -3195,7 +3292,8 @@ static const std::vector<CoopShotAdapter> sCoopShotAdapters = {
       [](Actor* actor) { return ((BossGanon*)actor)->unk_1A8 == 0 && ((BossGanon*)actor)->unk_1C2 == 0; },
       [](Actor* actor) { return ((BossGanon*)actor)->unk_1A8 != 0; },
       FollowGanondorfLightBall,
-      EndGanondorfLightBall },
+      EndGanondorfLightBall,
+      offsetof(BossGanon, collider) },
     { ACTOR_BOSS_TW,
       IsTwinrovaBlast,
       { STATE_RANGE(BossTw, work, fogR), STATE_FIELD(BossTw, csState1), STATE_FIELD(BossTw, magicDir),
@@ -3203,14 +3301,16 @@ static const std::vector<CoopShotAdapter> sCoopShotAdapters = {
       [](Actor* actor) { return ((BossTw*)actor)->csState1 != 2; },
       [](Actor* actor) { return ((BossTw*)actor)->csState1 == 2; },
       FollowTwinrovaBlast,
-      EndTwinrovaBlast },
+      EndTwinrovaBlast,
+      offsetof(BossTw, collider) },
     { ACTOR_BOSS_GANON,
       IsGanondorfBigMagicBall,
       { STATE_RANGE(BossGanon, unk_1A2, unk_1FC), STATE_FIELD(BossGanon, csCamMaxStepScale) },
       [](Actor* actor) { return ((BossGanon*)actor)->unk_1C2 == 10 || ((BossGanon*)actor)->unk_1C2 == 11; },
       [](Actor* actor) { return ((BossGanon*)actor)->unk_1C2 == 1; },
       FollowGanondorfBigMagicBall,
-      EndGanondorfBigMagicBall },
+      EndGanondorfBigMagicBall,
+      offsetof(BossGanon, collider) },
 };
 
 #define SHOT_TAKEOVER_FRAMES 20 // Without any state from the game running it for this long, the authority takes over
@@ -3257,6 +3357,17 @@ static void ApplyCoopShotState(const nlohmann::json& payload, Actor* actor, cons
     actor->scale = payload.at("scale").get<Vec3f>();
 }
 
+// The hit of our player's sword that last sent it back is still on it: only the shot's own update clears it (when it
+// registers its cylinder again), which doesn't run while another game runs it. When it comes back to us, Phantom
+// Ganon's ball would take that old hit for a new one and bounce back by itself, without a swing.
+static void ClearCoopShotHit(Actor* actor, const CoopShotAdapter* adapter) {
+    ColliderCylinder* collider = (ColliderCylinder*)((uintptr_t)actor + adapter->colliderOffset);
+    collider->base.acFlags &= ~AC_HIT;
+    collider->base.atFlags &= ~AT_HIT;
+    collider->info.bumperFlags &= ~BUMP_HIT;
+    collider->info.toucherFlags &= ~TOUCH_HIT;
+}
+
 // Called before a shot updates. Returns true if its own update is skipped (or was run here already).
 bool Anchor::UpdateCoopShot(Actor* actor) {
     CoopShot* shot = ObjectExtension::GetInstance().Get<CoopShot>(actor);
@@ -3269,6 +3380,7 @@ bool Anchor::UpdateCoopShot(Actor* actor) {
     if (shot->owner != ownClientId && IsCoopRoomAuthority() &&
         gPlayState->gameplayFrames - shot->lastStateFrame > SHOT_TAKEOVER_FRAMES) {
         shot->owner = ownClientId;
+        ClearCoopShotHit(actor, adapter);
     }
 
     if (shot->owner != ownClientId) {
@@ -3361,6 +3473,9 @@ void Anchor::HandlePacket_CoopShotState(nlohmann::json payload) {
             uint32_t owner = payload.at("owner").get<uint32_t>();
             if (owner == ownClientId && shot->owner != ownClientId && actor->parent != nullptr) {
                 RecordCoopAttacker(actor->parent, payload.at("clientId").get<uint32_t>(), THREAT_SHOT_FRAMES);
+            }
+            if (owner == ownClientId && shot->owner != ownClientId) {
+                ClearCoopShotHit(actor, adapter);
             }
             shot->owner = owner;
             shot->target = payload.at("target").get<uint32_t>();
@@ -3547,6 +3662,76 @@ void Anchor::DisarmCoopProjectileCopy(Actor* actor) {
     colChkCtx->colATCount = count;
 }
 
+// MARK: - Pause
+
+// Whether it follows the authority's game rather than running by itself: a puppet, a shot the authority's game runs,
+// or a copy of what the authority's enemies shot
+static bool IsFollowingCoopAuthority(Actor* actor) {
+    const CoopPuppet* puppet = ObjectExtension::GetInstance().Get<CoopPuppet>(actor);
+    if (puppet != nullptr) {
+        return !puppet->isReleased && gPlayState->gameplayFrames - puppet->lastSnapshotFrame <= PUPPET_TIMEOUT_FRAMES &&
+               IsMirroredNow(actor);
+    }
+    const CoopShot* shot = ObjectExtension::GetInstance().Get<CoopShot>(actor);
+    if (shot != nullptr) {
+        return shot->owner != Anchor::Instance->ownClientId && !shot->hasEnded;
+    }
+    const CoopProjectile* projectile = ObjectExtension::GetInstance().Get<CoopProjectile>(actor);
+    return projectile != nullptr && projectile->isCopy;
+}
+
+// The pause menu stops every actor in our game. With a teammate in the room running the enemies, they keep going in
+// theirs, so ours keep following them while we're in the menu: only what follows the authority's game is updated, the
+// way Actor_UpdateAll would, and our player stays where they are. That way nothing jumps when we come back (like
+// Volvagia's body), and we're in the same fight as everyone else. Collisions aren't checked, so nothing can hit our
+// player, nor can we hit anything. Called every frame, after the incoming packets.
+void Anchor::UpdateCoopWhilePaused() {
+    if (!IsSaveLoaded() || !IsGamePaused() || !IsCoopSyncActive() || IsCoopRoomAuthority() ||
+        GetCoopRoomAuthority() == 0 || GetCoopPeers(true).empty() || gPlayState->gameOverCtx.state != 0) {
+        return;
+    }
+
+    // Snapshots, timeouts and corrections count frames, as if the game went on
+    gPlayState->gameplayFrames++;
+    // The colliders registered while paused are never checked, they'd only fill the lists up
+    CollisionCheck_ClearContext(gPlayState, &gPlayState->colChkCtx);
+
+    Player* player = GET_PLAYER(gPlayState);
+    AnimationContext* animationCtx = &gPlayState->animationCtx;
+    s16 animationCountBefore = animationCtx->animationCount;
+    coopUpdatingWhilePaused = true;
+    for (s32 i = 0; i < ACTORCAT_MAX; i++) {
+        for (Actor* actor = gPlayState->actorCtx.actorLists[i].head; actor != NULL; actor = actor->next) {
+            if (actor->update == NULL || actor->init != NULL || !IsFollowingCoopAuthority(actor)) {
+                continue;
+            }
+
+            Math_Vec3f_Copy(&actor->prevPos, &actor->world.pos);
+            actor->xzDistToPlayer = Actor_WorldDistXZToActor(actor, &player->actor);
+            actor->yDistToPlayer = Actor_HeightDiff(actor, &player->actor);
+            actor->xyzDistToPlayerSq = SQ(actor->xzDistToPlayer) + SQ(actor->yDistToPlayer);
+            actor->yawTowardsPlayer = Actor_WorldYawTowardActor(actor, &player->actor);
+            if (actor->colorFilterTimer != 0) {
+                actor->colorFilterTimer--;
+            }
+            if (GameInteractor_ShouldActorUpdate(actor)) {
+                actor->update(actor, gPlayState);
+                GameInteractor_ExecuteOnActorUpdate(actor);
+            }
+        }
+    }
+    coopUpdatingWhilePaused = false;
+    coopUpdatingActor = nullptr;
+    // The skeletons' new poses are loaded from their animations here, Play_Update did that before these updates. Only
+    // what they queued: what the pause menu queued for itself is left as it is.
+    static AnimationContext sPausedAnimationCtx;
+    sPausedAnimationCtx.animationCount = animationCtx->animationCount - animationCountBefore;
+    memcpy(sPausedAnimationCtx.entries, &animationCtx->entries[animationCountBefore],
+           sPausedAnimationCtx.animationCount * sizeof(AnimationEntry));
+    animationCtx->animationCount = animationCountBefore;
+    AnimationContext_Update(gPlayState, &sPausedAnimationCtx);
+}
+
 // MARK: - Attacks on teammates
 
 // Called by a teammate's dummy player when it's hit by a mirrored enemy that we run
@@ -3567,8 +3752,9 @@ void Anchor::HandlePacket_CoopEnemyAttack(nlohmann::json payload) {
 
     Player* self = GET_PLAYER(gPlayState);
 
-    // Same exceptions as an enemy hit in vanilla: not while invincible, in a cutscene or getting an item
-    if (self->invincibilityTimer != 0 || Player_InBlockingCsMode(gPlayState, self) ||
+    // Same exceptions as an enemy hit in vanilla: not while invincible, in a cutscene or getting an item. Nor in the
+    // pause menu, the hit was aimed at us before the teammate knew we paused.
+    if (IsGamePaused() || self->invincibilityTimer != 0 || Player_InBlockingCsMode(gPlayState, self) ||
         self->stateFlags1 & (PLAYER_STATE1_IN_ITEM_CS | PLAYER_STATE1_GETTING_ITEM)) {
         return;
     }

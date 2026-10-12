@@ -56,6 +56,7 @@ bool IsCoopEnemy(Actor* actor);
 bool IsCoopBoss(Actor* actor);
 bool IsCoopDrivenPuppet(Actor* actor);
 bool IsCoopBossPart(Actor* actor);
+bool IsCoopOwnedByUs(Actor* actor);
 void ResetCoopBossThreat();
 void RecordCoopDamage(Actor* actor, s32 healthBefore, s32 healthAfter);
 s32 GetCoopHealth(Actor* actor);
@@ -132,6 +133,9 @@ typedef struct {
     // Whether they run the enemies of their room for everyone in it (see CoopEnemyMirror.cpp)
     bool claimsCoopAuthority;
 
+    // In the pause menu, where enemies leave them alone (see CoopEnemyMirror.cpp)
+    bool isPaused;
+
     // Their game left out the boss of their scene, they haven't found its soul yet (see CoopEnemyMirror.cpp)
     bool isBossLeftOut;
 
@@ -204,6 +208,9 @@ class Anchor : public Network {
     bool coopClaimsAuthority = false;   // We run the enemies of our room for everyone in it
     uint32_t coopRoomAuthority = 0;     // Who does, 0 while nobody does yet
     bool coopWasPaused = false;
+    bool coopUpdatingWhilePaused = false; // See UpdateCoopWhilePaused
+    bool coopSceneLoading =
+        false;              // From the scene's init until our player's first update, see SendPacket_CoopSceneFlag
     u32 coopRoomFrames = 0; // Frames since we entered the room (or came back from a pause)
     std::chrono::steady_clock::time_point coopLastActiveTime;
     std::queue<nlohmann::json> incomingPacketQueue;
@@ -238,6 +245,8 @@ class Anchor : public Network {
     void ApplyCoopDestroyedActors(nlohmann::json& destroyed, bool fromSameSeed);
     void UpdateCoopRoomAuthority();
     void UpdateCoopPause();
+    void UpdateCoopWhilePaused();
+    uint32_t FindCoopAuthorityClaim(bool& hasPeers);
     Actor* SpawnCoopPuppet(const CoopActorIdentity& identity, nlohmann::json& enemy);
     nlohmann::json PrepCoopEnemyHealth(s8 roomNum);
     void ApplyCoopEnemyHealth(nlohmann::json& enemies);
@@ -249,6 +258,10 @@ class Anchor : public Network {
     nlohmann::json PrepCoopMovedBlocks(s8 roomNum);
     void ApplyCoopMovedBlocks(nlohmann::json& blocks);
     void OnCoopPushableUpdating(Actor* actor);
+    void OnCoopSignUpdating(Actor* actor);
+    void OnCoopSignUpdated(Actor* actor);
+    void UpdateCoopToggleSwitch(Actor* actor);
+    void ReadCoopDayTime(nlohmann::json& payload);
     void OnCoopStatueInit(Actor* actor);
     void OnCoopStatueUpdated(Actor* actor);
     nlohmann::json PrepCoopTurnedStatues(s8 roomNum);
@@ -319,6 +332,7 @@ class Anchor : public Network {
     void HandlePacket_CoopSceneFlag(nlohmann::json payload);
     void HandlePacket_CoopSceneSync(nlohmann::json payload);
     void HandlePacket_CoopShotState(nlohmann::json payload);
+    void HandlePacket_CoopSignCut(nlohmann::json payload);
     void HandlePacket_CoopSceneSyncRequest(nlohmann::json payload);
     void HandlePacket_CoopStatueSettled(nlohmann::json payload);
     void HandlePacket_CoopStatueTurn(nlohmann::json payload);
@@ -367,6 +381,7 @@ class Anchor : public Network {
     inline static const std::string COOP_SCENE_SYNC = "COOP_SCENE_SYNC";
     inline static const std::string COOP_SCENE_SYNC_REQUEST = "COOP_SCENE_SYNC_REQUEST";
     inline static const std::string COOP_SHOT_STATE = "COOP_SHOT_STATE";
+    inline static const std::string COOP_SIGN_CUT = "COOP_SIGN_CUT";
     inline static const std::string COOP_STATUE_SETTLED = "COOP_STATUE_SETTLED";
     inline static const std::string COOP_STATUE_TURN = "COOP_STATUE_TURN";
     inline static const std::string COOP_TORCH_LIT = "COOP_TORCH_LIT";

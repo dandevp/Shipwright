@@ -180,6 +180,8 @@ void Anchor::ProcessIncomingPacketQueue() {
                 HandlePacket_CoopSceneSyncRequest(payload);
             else if (packetType == COOP_SHOT_STATE)
                 HandlePacket_CoopShotState(payload);
+            else if (packetType == COOP_SIGN_CUT)
+                HandlePacket_CoopSignCut(payload);
             else if (packetType == COOP_STATUE_SETTLED)
                 HandlePacket_CoopStatueSettled(payload);
             else if (packetType == COOP_STATUE_TURN)

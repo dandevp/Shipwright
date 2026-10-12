@@ -18,6 +18,25 @@ extern PlayState* gPlayState;
  * Note: This packet is sent _a lot_, so please do not include any unnecessary data in it
  */
 
+// Not while a cutscene or the credits set the time of day for their own purposes
+static bool IsOwnDayTimeShared() {
+    return gSaveContext.gameMode == GAMEMODE_NORMAL && gPlayState->csCtx.state == CS_STATE_IDLE;
+}
+
+// Teammates in the same scene share the time of day: the one whose clock is furthest along sets it for everyone, so a
+// Sun's Song reaches everyone, and a player coming out of a dungeon (where time stands still) or back from a pause
+// catches up with the others. Clocks are only ever moved forward, by less than half a day.
+void Anchor::ReadCoopDayTime(nlohmann::json& payload) {
+    if (!payload.contains("dayTime") || !IsCoopSyncActive() || !IsOwnDayTimeShared()) {
+        return;
+    }
+
+    u16 dayTime = payload["dayTime"].get<u16>();
+    if ((s16)(dayTime - gSaveContext.dayTime) > 0) {
+        gSaveContext.dayTime = dayTime;
+    }
+}
+
 void Anchor::SendPacket_PlayerUpdate() {
     if (!IsSaveLoaded()) {
         return;
@@ -76,8 +95,14 @@ void Anchor::SendPacket_PlayerUpdate() {
     if (coopClaimsAuthority) {
         payload["coopAuthority"] = true;
     }
+    if (gPlayState->pauseCtx.state != 0 || gPlayState->pauseCtx.debugState != 0) {
+        payload["paused"] = true;
+    }
     if (IsOwnBossLeftOut()) {
         payload["bossLeftOut"] = true;
+    }
+    if (IsCoopSyncActive() && IsOwnDayTimeShared()) {
+        payload["dayTime"] = gSaveContext.dayTime;
     }
     payload["quiet"] = true;
 
@@ -135,5 +160,9 @@ void Anchor::HandlePacket_PlayerUpdate(nlohmann::json payload) {
         ReadCoopCarriedObjects(client, payload);
         client.claimsCoopAuthority = payload.value("coopAuthority", false);
         client.isBossLeftOut = payload.value("bossLeftOut", false);
+        client.isPaused = payload.value("paused", false);
+        if (IsSaveLoaded() && IsCoopPeer(client)) {
+            ReadCoopDayTime(payload);
+        }
     }
 }
