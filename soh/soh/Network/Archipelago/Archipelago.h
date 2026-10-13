@@ -19,7 +19,9 @@ static constexpr int MAX_PASSWORD_LENGTH = 32;
 
 static constexpr char const* AP_GAME_NAME = "Ship of Harkinian";
 static constexpr char const* AP_WORLD_VERSION_MAJOR = "1";
-static constexpr char const* AP_WORLD_VERSION_MINOR = "4";
+static constexpr char const* AP_WORLD_VERSION_MINOR = "5";
+// The official 1.4.x apworld, whose slot data is a subset of 1.5's
+static constexpr char const* AP_WORLD_VERSION_MINOR_LEGACY = "4";
 static constexpr int MAX_RETRIES = 3;
 } // namespace AP_Client_consts
 

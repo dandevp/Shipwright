@@ -53,14 +53,15 @@ The work has two sides, and every feature needs both:
 - [x] Commit the pending work, create the `archipelago_port` branch
 - [x] Copy the 1.4.2 apworld source into `archipelago/oot_soh` (unchanged baseline)
 - [ ] Set up a local Archipelago checkout + venv (outside the repo) that can generate with `archipelago/oot_soh`
-- [ ] Client: fix `boss_key_shuffle == 0` setting `RSK_KEYSANITY` instead of `RSK_BOSS_KEYSANITY`
+- [x] Client: fix `boss_key_shuffle == 0` setting `RSK_KEYSANITY` instead of `RSK_BOSS_KEYSANITY`
       (`SeedContext.cpp`, ParseArchipelagoOptions)
-- [ ] Client: read every slot data key with `.value(key, default)` instead of `operator[]`
-- [ ] Client: accept apworld 1.4.x and 1.5.x (`AP_WORLD_VERSION_*` in `Archipelago.h`, check in `Archipelago.cpp`)
-- [ ] Client: log the scouted location and item names that don't resolve (`ParseArchipelagoItemsLocations`)
+- [x] Client: read every slot data key with `.value(key, default)` instead of `operator[]`
+- [x] Client: accept apworld 1.4.x and 1.5.x (`AP_WORLD_VERSION_*` in `Archipelago.h`, check in `Archipelago.cpp`)
+- [x] Client: log the scouted location and item names that don't resolve (`ParseArchipelagoItemsLocations`);
+      unknown locations are skipped instead of becoming `RC_UNKNOWN_CHECK`
 - [ ] Tool `archipelago/tools/`: dump the C++ location names (`location_list.cpp` + `Shuffle*.cpp`) and diff them against
       `Enums.py` `Locations`, to find renamed or missing checks
-- [ ] apworld: bump `world_version` to 1.5.0
+- [x] apworld: bump `world_version` to 1.5.0 (the copy said 1.4.1 although the file was released as 1.4.2)
 - [ ] Logic drift: diff the C++ `location_access/**` against the Python rules for the existing locations, and port
       the logic fixes made since the apworld was written
 
@@ -146,5 +147,7 @@ The largest phase. It uses Archipelago's generic entrance randomization (`entran
 
 Newest first. One line per commit or decision.
 
+- 2026-10-13: Phase 0 client groundwork: boss key fix, `.value()` slot data reads (`starting_hearts`
+  defaults to 3, the rest to 0), 1.4/1.5 version check, unknown name logging, apworld 1.5.0. **Not compiled yet.**
 - 2026-10-13: branch created from `ci/windows-build` (`5d11222c7`); apworld 1.4.2 copied in as baseline (`fe52dddb2`).
   The client's mapping (`ParseArchipelagoOptions`) was compared with every `RSK_*` setting; the gaps are the phases above.

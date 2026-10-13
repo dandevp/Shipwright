@@ -17,6 +17,10 @@ enemies between teammates, so they can play through the same areas together.
 - The Archipelago client is the official 1.4.2 one (jeromkiller/Shipwright_archipellago, tag Client_1.4.2), on the
   Settings page of file select: a new file loads the slot's data first (with its progress shown), then starts. The game
   is reported won when the end credits begin, for both Ganon and Triforce Hunt.
+- The client connects to slots generated with apworld 1.4.x (official) and 1.5.x (the port of the randomizer's
+  settings in `archipelago/oot_soh`, see `ARCHIPELAGO_PORT.md`). Slot options missing from the slot data fall back to
+  defaults instead of failing. Locations and items whose names the game doesn't know are reported in the Archipelago
+  console and left out, instead of becoming an invalid check.
 - Saves of the official Archipelago client (1.4.x) are recognized as Archipelago saves, but like any randomizer save
   of another SoH version (theirs is 9.2.3) they're moved aside as outdated: start a new file on the same slot, the
   server sends its items and checked locations again.
