@@ -88,8 +88,9 @@ Mostly slot data plus a little logic.
       Ganon's Boss Key / Ganon's Soul / win condition Trigger-Triforce Pieces, and where the pieces go
       (`RSK_TRIFORCE_HUNT_PIECES_LOCATION`). Needs the pieces created whenever any option uses them, and the client
       setting `RSK_TRIFORCE_HUNT_PIECES_TOTAL` outside of the Triforce Hunt case.
-- [ ] Ganon's Trials: Random Number (apworld only: pick the count at generation)
-- [ ] Link's Pocket reward type (`RSK_LINKS_POCKET_REWARD`)
+- [x] Ganon's Trials: Random Number (`ganons_trials` 2, the apworld picks 0-6). Client fix: it read `skip_ganons_trials`,
+      which no apworld sends; trials now follow `required_trials`
+- [x] Link's Pocket reward type (`links_pocket_reward`)
 - [ ] Starting inventory: every `RSK_STARTING_*` item. apworld: precollect the items and send them in slot data;
       client: set the options.
 - [ ] Starting Skulltula tokens (`RSK_STARTING_SKULLTULA_TOKEN`)
@@ -104,7 +105,7 @@ Mostly slot data plus a little logic.
 - [ ] Progressive Goron Sword, shop shields and tunics only refill
 - [ ] All Checks Reachable (AP has `accessibility`; map `full` onto it)
 - [ ] Fishsanity: Hyrule Loach only, pond fish count, child/adult split
-- [ ] Ice trap names (`RSK_ICE_TRAP_NAMES`)
+- [x] Ice trap names (`ice_trap_names`). Client: options are now parsed before the items, which read this one
 - [ ] Merchant prices (forced to vanilla); shop and scrub price modes, compared with the apworld's min/max prices
 - [ ] Hints: warp song hints, Hyrule Loach hint
 - [ ] Excluded locations: send AP's `exclude_locations` so the client marks them
@@ -165,6 +166,8 @@ The largest phase. It uses Archipelago's generic entrance randomization (`entran
 
 Newest first. One line per commit or decision.
 
+- 2026-10-14: trials Random Number, Link's Pocket reward, ice trap names; fixed the trials mapping my `.value()`
+  change had broken (every AP seed skipped the trials). Compared all slot data keys: client and apworld now agree.
 - 2026-10-13: Win condition and Ganon's Soul options. Generated one multiworld with every value of both (20
   players, 11 min): events/items land where expected, legacy `on_plus_ganons` and Triforce Hunt still behave like 1.4.
 - 2026-10-13: Ganon's Boss Key options + trigger items. All 12 GBK values generate (one multiworld, a player each)

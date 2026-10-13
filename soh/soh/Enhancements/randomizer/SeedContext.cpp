@@ -471,8 +471,8 @@ void Context::ParseArchipelago() {
     // Seed the RNG from the Archipelago seed up front so everything downstream is deterministic.
     SetSeed(apClient.GetSlotData()["archipelago_seed"]);
     Random_Init(GetSeed());
+    ParseArchipelagoOptions(); // first: the item placement reads options (ice trap names)
     ParseArchipelagoItemsLocations(apClient.GetScoutedItems());
-    ParseArchipelagoOptions();
     PlaceArchipelagoTriggerItems();
     ParseArchipelagoTricks();
     ParseArchipelagoExcludedLocations();
@@ -575,14 +575,9 @@ void Context::ParseArchipelagoOptions() {
     mOptions[RSK_RAINBOW_BRIDGE_DUNGEON_COUNT].Set(slotData.value("rainbow_bridge_dungeons_required", 0));
     mOptions[RSK_RAINBOW_BRIDGE_TOKEN_COUNT].Set(slotData.value("rainbow_bridge_skull_tokens_required", 0));
     mOptions[RSK_BRIDGE_OPTIONS].Set(slotData.value("rainbow_bridge_greg_modifier", 0));
-    if (slotData.value("skip_ganons_trials", 0) == 0) {
-        mOptions[RSK_GANONS_TRIALS].Set(RO_GANONS_TRIALS_SKIP);
-        mOptions[RSK_TRIAL_COUNT].Set(0);
-        mTrials->RemoveAllTrials();
-    } else {
-        mOptions[RSK_GANONS_TRIALS].Set(RO_GANONS_TRIALS_SET_NUMBER);
-        mOptions[RSK_TRIAL_COUNT].Set(slotData.value("ganons_trials_count", 0));
-        std::vector<TrialKey> requiredTrials;
+    // The apworld sends the trials it picked (Set Number, or Random Number in 1.5), whatever the mode
+    std::vector<TrialKey> requiredTrials;
+    if (slotData.value("ganons_trials", 0) != 0) {
         for (const nlohmann::basic_json<>& trialString : slotData["required_trials"]) {
             if (trialString == "Forest Trial") {
                 requiredTrials.emplace_back(TrialKey::TK_FOREST_TRIAL);
@@ -598,7 +593,14 @@ void Context::ParseArchipelagoOptions() {
                 requiredTrials.emplace_back(TrialKey::TK_LIGHT_TRIAL);
             }
         }
-
+    }
+    if (requiredTrials.empty()) {
+        mOptions[RSK_GANONS_TRIALS].Set(RO_GANONS_TRIALS_SKIP);
+        mOptions[RSK_TRIAL_COUNT].Set(0);
+        mTrials->RemoveAllTrials();
+    } else {
+        mOptions[RSK_GANONS_TRIALS].Set(RO_GANONS_TRIALS_SET_NUMBER);
+        mOptions[RSK_TRIAL_COUNT].Set(static_cast<uint8_t>(requiredTrials.size()));
         for (auto& trial : mTrials->GetTrialList()) {
             trial->SetAsSkipped();
             if (std::find(requiredTrials.begin(), requiredTrials.end(), trial->GetTrialKey()) != requiredTrials.end()) {
@@ -998,6 +1000,8 @@ void Context::ParseArchipelagoOptions() {
     }
     mOptions[RSK_SWORDLESS_EPONA_ITEMS].Set(slotData.value("swordless_epona_items", 0));
     mOptions[RSK_EARLY_GRANNYS_SHOP].Set(slotData.value("early_grannys_shop", 0));
+    mOptions[RSK_LINKS_POCKET_REWARD].Set(slotData.value("links_pocket_reward", 0));
+    mOptions[RSK_ICE_TRAP_NAMES].Set(slotData.value("ice_trap_names", static_cast<int>(RO_ICE_TRAP_NAMES_SIMILAR)));
     if (slotData.value("shuffle_fish", 0) == 0) {
         mOptions[RSK_FISHSANITY].Set(RO_FISHSANITY_OFF);
     } else if (slotData.value("shuffle_fish", 0) == 1) {

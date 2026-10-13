@@ -181,7 +181,9 @@ class SohWorld(CachedRuleBuilderWorld):
         self.pre_fill_pool += get_dungeon_item_prefill_items(self, True)
         self.pre_fill_pool += ShopItems.get_vanilla_shop_pool(self)
 
-        if self.options.ganons_trials == "set_number" and self.options.ganons_trials_count.value > 0:
+        if self.options.ganons_trials == "random_number":
+            self.options.ganons_trials_count.value = self.random.randint(0, 6)
+        if self.options.ganons_trials != "skip" and self.options.ganons_trials_count.value > 0:
             self.ganons_trials = [str(trial) for trial in GanonsTrials]
             if self.options.ganons_trials_count.value < 6:
                 self.random.shuffle(self.ganons_trials)

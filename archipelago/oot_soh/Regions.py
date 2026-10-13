@@ -465,7 +465,13 @@ def place_locked_items(world: "SohWorld") -> None:
             place_locked_item(location_name, reward_name, world)
     elif world.options.shuffle_dungeon_rewards != "end_of_dungeons":
         if world.options.start_with_links_pocket == "dungeon_reward":
-            dungeon_rewards = list(dungeon_reward_item_mapping.values())
+            stones = [Items.KOKIRIS_EMERALD, Items.GORONS_RUBY, Items.ZORAS_SAPPHIRE]
+            dungeon_rewards = {
+                "any_reward": list(dungeon_reward_item_mapping.values()),
+                "any_stone": stones,
+                "any_medallion": [reward for reward in dungeon_reward_item_mapping.values() if reward not in stones],
+                "light_medallion": [Items.LIGHT_MEDALLION],
+            }[world.options.links_pocket_reward.current_key]
             world.random.shuffle(dungeon_rewards)
             place_locked_item(Locations.LINKS_POCKET, dungeon_rewards[0], world)
 

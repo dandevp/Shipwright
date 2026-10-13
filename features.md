@@ -25,7 +25,8 @@ enemies between teammates, so they can play through the same areas together.
   a normal randomizer seed. With apworld 1.5, Ganon's Boss Key can also be in Ganon's Castle, any dungeon, the overworld
   or the starting items, and the Light Arrow Cutscene holds a random item.
 - apworld 1.5 also has the game's win conditions (the Triforce as an item, or a trigger), Ganon's Soul placements and
-  triggers, Early Granny's Shop and Swordless Epona Items.
+  triggers, Early Granny's Shop, Swordless Epona Items, a random number of Ganon's Trials, the kind of reward in Link's
+  Pocket and the ice trap names.
 - Saves of the official Archipelago client (1.4.x) are recognized as Archipelago saves, but like any randomizer save
   of another SoH version (theirs is 9.2.3) they're moved aside as outdated: start a new file on the same slot, the
   server sends its items and checked locations again.

@@ -202,10 +202,12 @@ class GanonsTrials(Choice):
     Sets the number of Ganon's Trials required to dispel the barrier.
     Skip - No trials are required and the barrier is already dispelled.
     Set Number - Select a number of trials that will be required. The required trials will be chosen randomly.
+    Random Number - A random number of trials (0 to 6) will be required, chosen randomly.
     """
     display_name = "Ganon's Trials"
     option_skip = 0
     option_set_number = 1
+    option_random_number = 2
     default = 0
 
 
@@ -1325,6 +1327,24 @@ class IceTrapFillerReplacement(Range):
     range_end = 100
     default = 0
 
+
+class IceTrapNames(Choice):
+    """
+    How ice traps disguised as your own items are named.
+    Identical - Exactly like the item they look like.
+    Similar - A similar-sounding fake name.
+    Misspelled (Vowel) - The item's name with a vowel changed.
+    Misspelled (Duplicate) - The item's name with a letter doubled.
+    Revealed - Named as an ice trap.
+    """
+    display_name = "Ice Trap Names"
+    option_identical = 0
+    option_similar = 1
+    option_misspelled_vowel = 2
+    option_misspelled_duplicate = 3
+    option_revealed = 4
+    default = 1
+
 class HintClarity(Choice):
     """
     Sets the clarity of hints.
@@ -1614,6 +1634,19 @@ class StartWithLinksPocket(Choice):
     option_nothing = 3
     default = 0
 
+
+class LinksPocketReward(Choice):
+    """
+    If Link's Pocket is set to Dungeon Reward, which kind of reward it can be.
+    """
+    display_name = "Link's Pocket Reward"
+    option_any_reward = 0
+    option_any_stone = 1
+    option_any_medallion = 2
+    option_light_medallion = 3
+    default = 0
+
+
 class StartWithKokiriSword(Toggle):
     """
     Start with the Kokiri Sword in your inventory.
@@ -1882,6 +1915,7 @@ class SohOptions(PerGameCommonOptions):
     complete_mask_quest: CompleteMaskQuest
     skip_scarecrows_song: SkipScarecrowsSong
     start_with_links_pocket: StartWithLinksPocket
+    links_pocket_reward: LinksPocketReward
     start_with_kokiri_sword: StartWithKokiriSword
     start_with_master_sword: StartWithMasterSword
     start_with_deku_shield: StartWithDekuShield
@@ -1918,6 +1952,7 @@ class SohOptions(PerGameCommonOptions):
     shuffle_100_gs_reward: Shuffle100GSReward
     ice_trap_count: IceTrapCount
     ice_trap_filler_replacement: IceTrapFillerReplacement
+    ice_trap_names: IceTrapNames
     true_no_logic: TrueNoLogic
     shuffle_tycoon_wallet: ShuffleTycoonWallet
     tricks_in_logic: TricksInLogic
@@ -2162,6 +2197,8 @@ slot_data_options_15: tuple[str, ...] = (
     "ganons_soul_greg_modifier",
     "swordless_epona_items",
     "early_grannys_shop",
+    "links_pocket_reward",
+    "ice_trap_names",
 )
 
 
@@ -2307,7 +2344,8 @@ soh_option_groups = [
     OptionGroup("Item Pool & Traps", [
         ItemPool,
         IceTrapCount,
-        IceTrapFillerReplacement
+        IceTrapFillerReplacement,
+        IceTrapNames,
     ]),
     OptionGroup("Hints", [
         HintClarity,
@@ -2343,6 +2381,7 @@ soh_option_groups = [
     ]),
     OptionGroup("Starting Items", [
         StartWithLinksPocket,
+        LinksPocketReward,
         StartWithKokiriSword,
         StartWithMasterSword,
         StartWithDekuShield,
