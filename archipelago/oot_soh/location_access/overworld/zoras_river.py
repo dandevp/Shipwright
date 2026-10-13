@@ -247,7 +247,7 @@ def set_region_rules(world: "SohWorld") -> None:
          lambda bundle: can_stun_deku(bundle) & can_afford_slot(Locations.ZR_DEKU_SCRUB_GROTTO_FRONT, bundle)),
         (Locations.ZR_DEKU_SCRUB_GROTTO_REAR,
          lambda bundle: can_stun_deku(bundle) & can_afford_slot(Locations.ZR_DEKU_SCRUB_GROTTO_REAR, bundle)),
-        (Locations.ZR_STORMS_GROTTO_BEEHIVE,
+        (Locations.ZR_DEKU_SCRUB_GROTTO_BEEHIVE,
          lambda bundle: can_break_upper_beehives(bundle))
 
     ])

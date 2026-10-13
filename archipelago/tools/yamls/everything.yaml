@@ -1,0 +1,23 @@
+# Every check type shuffled, to cover as many locations as possible
+name: SohEverything
+game: Ship of Harkinian
+Ship of Harkinian:
+  shuffle_skull_tokens: all
+  shuffle_shops: true
+  shuffle_scrubs: all
+  shuffle_beehives: true
+  shuffle_cows: true
+  shuffle_pots: all
+  shuffle_crates: all
+  shuffle_trees: true
+  shuffle_grass: all
+  shuffle_freestanding_items: all
+  shuffle_fish: all
+  shuffle_fountain_fairies: true
+  shuffle_stone_fairies: true
+  shuffle_bean_fairies: true
+  shuffle_song_fairies: true
+  shuffle_frog_song_rupees: true
+  shuffle_merchants: all
+  shuffle_adult_trade_items: true
+  shuffle_100_gs_reward: true

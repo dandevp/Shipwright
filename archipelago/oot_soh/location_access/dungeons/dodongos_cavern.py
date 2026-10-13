@@ -99,10 +99,6 @@ def set_region_rules(world: "SohWorld") -> None:
          lambda bundle: can_break_pots(bundle)),
         (Locations.DODONGOS_CAVERN_SIDE_ROOM_POT4,
          lambda bundle: can_break_pots(bundle)),
-        (Locations.DODONGOS_CAVERN_SIDE_ROOM_POT5,
-         lambda bundle: can_break_pots(bundle)),
-        (Locations.DODONGOS_CAVERN_SIDE_ROOM_POT6,
-         lambda bundle: can_break_pots(bundle)),
     ])
     # Connections
     connect_regions(Regions.DODONGOS_CAVERN_SE_CORRIDOR, world, [
@@ -124,6 +120,13 @@ def set_region_rules(world: "SohWorld") -> None:
     ])
 
     # Dodongos Cavern Near Lower Lizalfos
+    # Locations
+    add_locations(Regions.DODONGOS_CAVERN_NEAR_LOWER_LIZALFOS, world, [
+        (Locations.DODONGOS_CAVERN_NEAR_LOWER_LIZALFOS_POT1,
+         lambda bundle: can_break_pots(bundle)),
+        (Locations.DODONGOS_CAVERN_NEAR_LOWER_LIZALFOS_POT2,
+         lambda bundle: can_break_pots(bundle)),
+    ])
     # Connections
     connect_regions(Regions.DODONGOS_CAVERN_NEAR_LOWER_LIZALFOS, world, [
         (Regions.DODONGOS_CAVERN_SE_CORRIDOR, lambda bundle: True_()),
