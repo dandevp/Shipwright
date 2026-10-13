@@ -65,8 +65,8 @@ The work has two sides, and every feature needs both:
       apworld doesn't have). Fixed what it found: 5 locations renamed in develop (ZR Deku Scrub Grotto Beehive,
       DC Near Lizalfos Room Pots, Kak/LLR Tree, HC NL Tree Near Guards) and the Chest Game key items
 - [x] apworld: bump `world_version` to 1.5.0 (the copy said 1.4.1 although the file was released as 1.4.2)
-- [ ] Logic drift: diff the C++ `location_access/**` against the Python rules for the existing locations, and port
-      the logic fixes made since the apworld was written
+- [ ] Logic drift: port the C++ logic fixes made since the apworld was written. Triaged commit by commit in
+      `archipelago/LOGIC_DRIFT.md` (62 commits since `1de22d816`). The `feature` and `mq` ones go with their phase.
 
 ## Phase 1: options without new locations
 
