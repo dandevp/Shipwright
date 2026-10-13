@@ -910,9 +910,9 @@ def can_kill_enemy(bundle: tuple[Regions, "SohWorld"], enemy: Enemies, distance:
 
 
 def has_boss_soul(soul: Items, bundle: tuple[Regions, "SohWorld"]):
-    # only check for possesion of gannons soul if the option 'on_plus_ganons' is selected
+    # Ganon's Soul has its own option (resolved from Shuffle Boss Souls in generate_early)
     if soul == Items.GANONS_SOUL:
-        return OptionFilter(ShuffleBossSouls, [ShuffleBossSouls.option_off,ShuffleBossSouls.option_on], operator="in") | has_item(soul, bundle)
+        return OptionFilter(GanonsSoul, GanonsSoul.option_start_with) | has_item(soul, bundle)
         
     return OptionFilter(ShuffleBossSouls, ShuffleBossSouls.option_off) | has_item(soul, bundle)
 
@@ -1192,6 +1192,26 @@ def can_trigger_gbk(bundle: tuple[Regions, "SohWorld"]) -> Rule:
          | (OptionFilter(GanonsCastleBossKey, GanonsCastleBossKey.option_lacs_dungeons) & ItemsPlusGregEnough(target=FromOption(GanonsCastleBossKeyDungeonsRequired), item_tag=dungeon_events, greg=greg)) \
          | (OptionFilter(GanonsCastleBossKey, GanonsCastleBossKey.option_lacs_skull_tokens) & Has(Items.GOLD_SKULLTULA_TOKEN, count=FromOption(GanonsCastleBossKeySkullTokensRequired)))
 
+
+
+def _trigger_requirement(choice, prefix: str) -> Rule:
+    # The Trigger-* values of a WinCondition / GanonsSoul option, with their counts and Greg modifier,
+    # like MeetsWinconRequirements / MeetsGanonsSoulRequirements in the game
+    count = lambda kind: FromOption(globals()[f"{prefix}{kind}Required"])
+    greg = FromOption(globals()[f"{prefix}GregModifier"])
+    return (OptionFilter(choice, choice.option_trigger_stones) & ItemsPlusGregEnough(target=count("Stones"), item_tag=GroupTag.Spiritual_Stone, greg=greg)) \
+         | (OptionFilter(choice, choice.option_trigger_medallions) & ItemsPlusGregEnough(target=count("Medallions"), item_tag=GroupTag.Medallion, greg=greg)) \
+         | (OptionFilter(choice, choice.option_trigger_dungeon_rewards) & ItemsPlusGregEnough(target=count("DungeonRewards"), item_tag=GroupTag.Spiritual_Stone | GroupTag.Medallion, greg=greg)) \
+         | (OptionFilter(choice, choice.option_trigger_dungeons) & ItemsPlusGregEnough(target=count("Dungeons"), item_tag=dungeon_events, greg=greg)) \
+         | (OptionFilter(choice, choice.option_trigger_skull_tokens) & Has(Items.GOLD_SKULLTULA_TOKEN, count=count("SkullTokens")))
+
+
+def can_trigger_wincon(bundle: tuple[Regions, "SohWorld"]) -> Rule:
+    return _trigger_requirement(WinCondition, "WinCondition")
+
+
+def can_trigger_ganons_soul(bundle: tuple[Regions, "SohWorld"]) -> Rule:
+    return _trigger_requirement(GanonsSoul, "GanonsSoul")
 
 
 # TODO implement EffectiveHealth(); Returns 2 for now. Requires implementing a damage multiplier option

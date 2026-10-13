@@ -78,18 +78,23 @@ Mostly slot data plus a little logic.
 - [x] Client: the trigger checks (`RC_GANONS_BOSS_KEY`, `RC_GANON_SOUL`, `RC_WINCON`) and `RC_GANON` get their fixed
       item locally (`PlaceArchipelagoTriggerItems`), as `item_pool.cpp` does. Before, they held nothing on an AP save: a
       1.4 LACS seed never gave the boss key from its trigger, and a Triforce Hunt never warped to the credits.
-- [ ] Win condition: Anywhere and the Stones/Medallions/Rewards/Dungeons/Tokens triggers (`RSK_WINCON`), plus
-      `RSK_WINCON_OPTIONS` (Greg) and the counts
-- [ ] Ganon's Soul: Any Dungeon, Overworld, triggers (`RSK_GANONS_SOUL`), plus `RSK_GANONS_SOUL_OPTIONS` and the counts
-- [ ] Rainbow Bridge: Triforce Pieces bridge + `RSK_RAINBOW_BRIDGE_TRIFORCE_COUNT`
-- [ ] Triforce piece placement (`RSK_TRIFORCE_HUNT_PIECES_LOCATION`)
+- [x] Win condition: `win_condition` (Defeat Ganon, Anywhere = the Triforce as an item, Trigger-Stones to
+      Trigger-Tokens) with counts and Greg modifier. Numbered like `RO_WINCON_*`. Triforce Hunt still overrides it.
+- [x] Ganon's Soul: `ganons_soul` (With Boss Souls = 1.4 behavior, Start With, Any Dungeon, Overworld, Anywhere,
+      Trigger-Stones to Trigger-Tokens) with counts and Greg modifier. Independent of Shuffle Boss Souls, like the game.
+- [ ] Triforce pieces without a Triforce Hunt win: Rainbow Bridge Triforce Pieces (`RSK_RAINBOW_BRIDGE_TRIFORCE_COUNT`),
+      Ganon's Boss Key / Ganon's Soul / win condition Trigger-Triforce Pieces, and where the pieces go
+      (`RSK_TRIFORCE_HUNT_PIECES_LOCATION`). Needs the pieces created whenever any option uses them, and the client
+      setting `RSK_TRIFORCE_HUNT_PIECES_TOTAL` outside of the Triforce Hunt case.
 - [ ] Ganon's Trials: Random Number (apworld only: pick the count at generation)
 - [ ] Link's Pocket reward type (`RSK_LINKS_POCKET_REWARD`)
 - [ ] Starting inventory: every `RSK_STARTING_*` item. apworld: precollect the items and send them in slot data;
       client: set the options.
 - [ ] Starting Skulltula tokens (`RSK_STARTING_SKULLTULA_TOKEN`)
 - [ ] Masks one by one, instead of "complete mask quest" giving all of them
-- [ ] Time savers: Skip Child Stealth, Skip Planting Beans (both forced off now)
+- [x] ~~Skip Child Stealth~~: dummied out in the game's settings (`settings.cpp:1344`), the time saver covers it
+- [ ] Skip Planting Beans: port it together with the bean events commit 55b52a26a (`LOGIC_DRIFT.md`); the apworld
+      still has the old per-patch bean logic
 - [ ] Early Granny's Shop, Masks as Adult, Bunny Hood, Progressive Goron Sword, Swordless Epona Items,
       shop shields and tunics only refill
 - [ ] All Checks Reachable (AP has `accessibility`; map `full` onto it)
@@ -155,6 +160,8 @@ The largest phase. It uses Archipelago's generic entrance randomization (`entran
 
 Newest first. One line per commit or decision.
 
+- 2026-10-13: Win condition and Ganon's Soul options. Generated one multiworld with every value of both (20
+  players, 11 min): events/items land where expected, legacy `on_plus_ganons` and Triforce Hunt still behave like 1.4.
 - 2026-10-13: Ganon's Boss Key options + trigger items. All 12 GBK values generate (one multiworld, a player each)
   and land where expected. Client not compiled yet.
 - 2026-10-13: name check tool + generate script; the apworld's names now all resolve in the game. The two DC pots

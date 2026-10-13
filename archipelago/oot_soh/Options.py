@@ -752,7 +752,7 @@ class GanonsCastleBossKeyGregModifier(Choice):
 class GanonsCastleBossKeyStonesRequired(Range):
     """
     If Ganon's Castle Boss Key is set to Stones, this is how many Spiritual Stones are required to open it.
-    Once the required amount is reached, the boss key will be granted through the Light Arrow cutscene in the Temple of Time.
+    Once the required amount is reached, the boss key is granted wherever you are.
     If the Greg Modifier is not set to Reward, the max will be 3.
     """
     display_name = "Ganon's Castle Boss Key Stones Required"
@@ -764,7 +764,7 @@ class GanonsCastleBossKeyStonesRequired(Range):
 class GanonsCastleBossKeyMedallionsRequired(Range):
     """
     If Ganon's Castle Boss Key is set to Medallions, this is how many medallions are required to open it.
-    Once the required amount is reached, the boss key will be granted through the Light Arrow cutscene in the Temple of Time.
+    Once the required amount is reached, the boss key is granted wherever you are.
     If the Greg Modifier is not set to Reward, the max will be 6.
     """
     display_name = "Ganon's Castle Boss Key Medallions Required"
@@ -776,7 +776,7 @@ class GanonsCastleBossKeyMedallionsRequired(Range):
 class GanonsCastleBossKeyDungeonRewardsRequired(Range):
     """
     If Ganon's Castle Boss Key is set to Dungeon Rewards, this is how many dungeon rewards are required to open it.
-    Once the required amount is reached, the boss key will be granted through the Light Arrow cutscene in the Temple of Time.
+    Once the required amount is reached, the boss key is granted wherever you are.
     If the Greg Modifier is not set to Reward, the max will be 9.
     """
     display_name = "Ganon's Castle Boss Key Dungeon Rewards Required"
@@ -788,7 +788,7 @@ class GanonsCastleBossKeyDungeonRewardsRequired(Range):
 class GanonsCastleBossKeyDungeonsRequired(Range):
     """
     If Ganon's Castle Boss Key is set to Dungeons, this is how many dungeon completions are required to open it.
-    Once the required amount is reached, the boss key will be granted through the Light Arrow cutscene in the Temple of Time.
+    Once the required amount is reached, the boss key is granted wherever you are.
     If the Greg Modifier is not set to Reward, the max will be 8.
     """
     display_name = "Ganon's Castle Boss Key Dungeons Required"
@@ -800,12 +800,208 @@ class GanonsCastleBossKeyDungeonsRequired(Range):
 class GanonsCastleBossKeySkullTokensRequired(Range):
     """
     If Ganon's Castle Boss Key is set to Tokens, this is how many Gold Skulltula Tokens are required to open it.
-    Once the required amount is reached, the boss key will be granted through the Light Arrow cutscene in the Temple of Time.
+    Once the required amount is reached, the boss key is granted wherever you are.
     """
     display_name = "Ganon's Castle Boss Key Skull Tokens Required"
     range_start = 1
     range_end = 100
     default = 50
+
+
+class WinCondition(Choice):
+    """
+    What finishes the game. Ignored when Triforce Hunt is on.
+    Defeat Ganon - Defeat Ganon.
+    Anywhere - The Triforce is shuffled as an item; finding it finishes the game.
+    Trigger - The game finishes as soon as you meet a requirement, wherever you are:
+    - Stones: Obtain the specified amount of Spiritual Stones.
+    - Medallions: Obtain the specified amount of medallions.
+    - Dungeon rewards: Obtain the specified total sum of Spiritual Stones or medallions.
+    - Dungeons: Complete the specified amount of dungeons.
+    - Tokens: Obtain the specified amount of Gold Skulltula Tokens.
+    """
+    display_name = "Win Condition"
+    option_defeat_ganon = 0
+    option_anywhere = 1
+    option_trigger_stones = 2
+    option_trigger_medallions = 3
+    option_trigger_dungeon_rewards = 4
+    option_trigger_dungeons = 5
+    option_trigger_skull_tokens = 6
+    default = 0
+
+    @property
+    def is_trigger(self) -> bool:
+        return self.value >= self.option_trigger_stones
+
+
+class WinConditionStonesRequired(Range):
+    """
+    If Win Condition is set to Trigger - Stones, this is how many Spiritual Stones are required for finishing the game.
+    If the Greg Modifier is not set to Reward, the max will be 3.
+    """
+    display_name = "Win Condition Stones Required"
+    range_start = 1
+    range_end = 4
+    default = 3
+
+
+class WinConditionMedallionsRequired(Range):
+    """
+    If Win Condition is set to Trigger - Medallions, this is how many medallions are required for finishing the game.
+    If the Greg Modifier is not set to Reward, the max will be 6.
+    """
+    display_name = "Win Condition Medallions Required"
+    range_start = 1
+    range_end = 7
+    default = 6
+
+
+class WinConditionDungeonRewardsRequired(Range):
+    """
+    If Win Condition is set to Trigger - Dungeon Rewards, this is how many dungeon rewards are required for finishing the game.
+    If the Greg Modifier is not set to Reward, the max will be 9.
+    """
+    display_name = "Win Condition Dungeon Rewards Required"
+    range_start = 1
+    range_end = 10
+    default = 9
+
+
+class WinConditionDungeonsRequired(Range):
+    """
+    If Win Condition is set to Trigger - Dungeons, this is how many dungeon completions are required for finishing the game.
+    If the Greg Modifier is not set to Reward, the max will be 8.
+    """
+    display_name = "Win Condition Dungeons Required"
+    range_start = 1
+    range_end = 9
+    default = 8
+
+
+class WinConditionSkullTokensRequired(Range):
+    """
+    If Win Condition is set to Trigger - Tokens, this is how many Gold Skulltula Tokens are required for finishing the game.
+    """
+    display_name = "Win Condition Skull Tokens Required"
+    range_start = 1
+    range_end = 100
+    default = 100
+
+
+class WinConditionGregModifier(Choice):
+    """
+    If Win Condition is a trigger, Greg can count toward it.
+    Off - Greg will not count toward the requirement.
+    Reward - Greg will count toward the requirement and be considered in the logic.
+    Wildcard - Greg will count toward the requirement but not be considered in the logic.
+    """
+    display_name = "Win Condition Greg Modifier"
+    option_off = 0
+    option_reward = 1
+    option_wildcard = 2
+    default = 0
+
+
+class GanonsSoul(Choice):
+    """
+    Where Ganon's Soul is. Without it, Ganon and Ganondorf don't appear.
+    With Boss Souls - Like before this option existed: shuffled anywhere if Shuffle Boss Souls is On + Ganon, otherwise you start with it.
+    Start With - You start with Ganon's Soul.
+    Any Dungeon - Ganon's Soul can appear in any dungeon.
+    Overworld - Ganon's Soul can appear anywhere outside of dungeons.
+    Anywhere - Ganon's Soul can appear anywhere.
+    Trigger - You get Ganon's Soul as soon as you meet a requirement, wherever you are:
+    - Stones: Obtain the specified amount of Spiritual Stones.
+    - Medallions: Obtain the specified amount of medallions.
+    - Dungeon rewards: Obtain the specified total sum of Spiritual Stones or medallions.
+    - Dungeons: Complete the specified amount of dungeons.
+    - Tokens: Obtain the specified amount of Gold Skulltula Tokens.
+    """
+    display_name = "Ganon's Soul"
+    option_with_boss_souls = 0
+    option_start_with = 1
+    option_any_dungeon = 2
+    option_overworld = 3
+    option_anywhere = 4
+    option_trigger_stones = 5
+    option_trigger_medallions = 6
+    option_trigger_dungeon_rewards = 7
+    option_trigger_dungeons = 8
+    option_trigger_skull_tokens = 9
+    default = 0
+
+    @property
+    def is_trigger(self) -> bool:
+        return self.value >= self.option_trigger_stones
+
+
+class GanonsSoulStonesRequired(Range):
+    """
+    If Ganon's Soul is set to Trigger - Stones, this is how many Spiritual Stones are required for Ganon's Soul.
+    If the Greg Modifier is not set to Reward, the max will be 3.
+    """
+    display_name = "Ganon's Soul Stones Required"
+    range_start = 1
+    range_end = 4
+    default = 3
+
+
+class GanonsSoulMedallionsRequired(Range):
+    """
+    If Ganon's Soul is set to Trigger - Medallions, this is how many medallions are required for Ganon's Soul.
+    If the Greg Modifier is not set to Reward, the max will be 6.
+    """
+    display_name = "Ganon's Soul Medallions Required"
+    range_start = 1
+    range_end = 7
+    default = 6
+
+
+class GanonsSoulDungeonRewardsRequired(Range):
+    """
+    If Ganon's Soul is set to Trigger - Dungeon Rewards, this is how many dungeon rewards are required for Ganon's Soul.
+    If the Greg Modifier is not set to Reward, the max will be 9.
+    """
+    display_name = "Ganon's Soul Dungeon Rewards Required"
+    range_start = 1
+    range_end = 10
+    default = 9
+
+
+class GanonsSoulDungeonsRequired(Range):
+    """
+    If Ganon's Soul is set to Trigger - Dungeons, this is how many dungeon completions are required for Ganon's Soul.
+    If the Greg Modifier is not set to Reward, the max will be 8.
+    """
+    display_name = "Ganon's Soul Dungeons Required"
+    range_start = 1
+    range_end = 9
+    default = 8
+
+
+class GanonsSoulSkullTokensRequired(Range):
+    """
+    If Ganon's Soul is set to Trigger - Tokens, this is how many Gold Skulltula Tokens are required for Ganon's Soul.
+    """
+    display_name = "Ganon's Soul Skull Tokens Required"
+    range_start = 1
+    range_end = 100
+    default = 100
+
+
+class GanonsSoulGregModifier(Choice):
+    """
+    If Ganon's Soul is a trigger, Greg can count toward it.
+    Off - Greg will not count toward the requirement.
+    Reward - Greg will count toward the requirement and be considered in the logic.
+    Wildcard - Greg will count toward the requirement but not be considered in the logic.
+    """
+    display_name = "Ganon's Soul Greg Modifier"
+    option_off = 0
+    option_reward = 1
+    option_wildcard = 2
+    default = 0
 
 
 class SmallKeyShuffle(Choice):
@@ -1638,6 +1834,20 @@ class SohOptions(PerGameCommonOptions):
     ganons_castle_boss_key_dungeons_required: GanonsCastleBossKeyDungeonsRequired
     ganons_castle_boss_key_skull_tokens_required: GanonsCastleBossKeySkullTokensRequired
     ganons_castle_boss_key_greg_modifier: GanonsCastleBossKeyGregModifier
+    win_condition: WinCondition
+    win_condition_stones_required: WinConditionStonesRequired
+    win_condition_medallions_required: WinConditionMedallionsRequired
+    win_condition_dungeon_rewards_required: WinConditionDungeonRewardsRequired
+    win_condition_dungeons_required: WinConditionDungeonsRequired
+    win_condition_skull_tokens_required: WinConditionSkullTokensRequired
+    win_condition_greg_modifier: WinConditionGregModifier
+    ganons_soul: GanonsSoul
+    ganons_soul_stones_required: GanonsSoulStonesRequired
+    ganons_soul_medallions_required: GanonsSoulMedallionsRequired
+    ganons_soul_dungeon_rewards_required: GanonsSoulDungeonRewardsRequired
+    ganons_soul_dungeons_required: GanonsSoulDungeonsRequired
+    ganons_soul_skull_tokens_required: GanonsSoulSkullTokensRequired
+    ganons_soul_greg_modifier: GanonsSoulGregModifier
     small_key_shuffle: SmallKeyShuffle
     gerudo_fortress_key_shuffle: GerudoFortressKeyShuffle
     boss_key_shuffle: BossKeyShuffle
@@ -1845,8 +2055,13 @@ class SohOptions(PerGameCommonOptions):
             rainbow_bridge_tokens = self.rainbow_bridge_skull_tokens_required.value
         if self.ganons_castle_boss_key == GanonsCastleBossKey.option_lacs_skull_tokens:
             ganons_castle_boss_key_tokens = self.ganons_castle_boss_key_skull_tokens_required.value
-        
-        required_skulltula_count = max(required_skulltula_count, rainbow_bridge_tokens, ganons_castle_boss_key_tokens)
+        win_condition_tokens = self.win_condition_skull_tokens_required.value \
+            if self.win_condition == WinCondition.option_trigger_skull_tokens and not self.triforce_hunt else 0
+        ganons_soul_tokens = self.ganons_soul_skull_tokens_required.value \
+            if self.ganons_soul == GanonsSoul.option_trigger_skull_tokens else 0
+
+        required_skulltula_count = max(required_skulltula_count, rainbow_bridge_tokens, ganons_castle_boss_key_tokens,
+                                       win_condition_tokens, ganons_soul_tokens)
 
         if self.accessibility == Accessibility.option_full:
             # If full accessibility is enabled, assume all vanilla tokens are available and calculate the required shuffled tokens
@@ -1904,6 +2119,13 @@ class SohOptions(PerGameCommonOptions):
 
             decrement_option(option)
 
+        for trigger, prefix in ((self.win_condition, "win_condition"), (self.ganons_soul, "ganons_soul")):
+            if getattr(self, f"{prefix}_greg_modifier") == WinConditionGregModifier.option_reward or not trigger.is_trigger:
+                continue
+            kind = trigger.current_key.removeprefix("trigger_")
+            if kind != "skull_tokens":
+                decrement_option(getattr(self, f"{prefix}_{kind}_required"))
+
 
 soh_option_groups = [
     OptionGroup("Area Access", [
@@ -1934,6 +2156,20 @@ soh_option_groups = [
         TriforceHunt,
         TriforceHuntPiecesTotal,
         TriforceHuntPiecesRequiredPercentage,
+        WinCondition,
+        WinConditionStonesRequired,
+        WinConditionMedallionsRequired,
+        WinConditionDungeonRewardsRequired,
+        WinConditionDungeonsRequired,
+        WinConditionSkullTokensRequired,
+        WinConditionGregModifier,
+        GanonsSoul,
+        GanonsSoulStonesRequired,
+        GanonsSoulMedallionsRequired,
+        GanonsSoulDungeonRewardsRequired,
+        GanonsSoulDungeonsRequired,
+        GanonsSoulSkullTokensRequired,
+        GanonsSoulGregModifier,
     ]),
     # OptionGroup("Shuffle Entrances", [
     #     # Dungeon Entrances

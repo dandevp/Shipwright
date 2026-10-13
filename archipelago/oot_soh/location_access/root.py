@@ -10,6 +10,8 @@ class EventLocations(StrEnum):
     ROOT_HYLIAN_SHIELD = "Root Hylian Shield"
     TRIFORCE_HUNT_COMPLETION = "Triforce Hunt Completion"
     GANONS_BOSS_KEY_TRIGGER = "Ganon's Boss Key Trigger"
+    GANONS_SOUL_TRIGGER = "Ganon's Soul Trigger"
+    WIN_CONDITION = "Win Condition"
 
 
 def set_region_rules(world: "SohWorld") -> None:
@@ -23,6 +25,19 @@ def set_region_rules(world: "SohWorld") -> None:
         add_events(Regions.ROOT, world, [
             (EventLocations.GANONS_BOSS_KEY_TRIGGER, Items.GANONS_CASTLE_BOSS_KEY, lambda bundle: can_trigger_gbk(bundle))
         ])
+    if world.options.ganons_soul.is_trigger:
+        add_events(Regions.ROOT, world, [
+            (EventLocations.GANONS_SOUL_TRIGGER, Items.GANONS_SOUL, lambda bundle: can_trigger_ganons_soul(bundle))
+        ])
+    if not world.options.triforce_hunt:
+        if world.options.win_condition == "anywhere":
+            add_events(Regions.ROOT, world, [
+                (EventLocations.WIN_CONDITION, Events.GAME_COMPLETED, lambda bundle: has_item(Items.TRIFORCE, bundle))
+            ])
+        elif world.options.win_condition.is_trigger:
+            add_events(Regions.ROOT, world, [
+                (EventLocations.WIN_CONDITION, Events.GAME_COMPLETED, lambda bundle: can_trigger_wincon(bundle))
+            ])
     # Locations
     add_locations(Regions.ROOT, world, [
         (Locations.LINKS_POCKET, lambda bundle: True_())

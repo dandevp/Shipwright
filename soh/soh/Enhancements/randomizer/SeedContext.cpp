@@ -975,6 +975,27 @@ void Context::ParseArchipelagoOptions() {
     mOptions[RSK_SHUFFLE_BOSS_SOULS].Set(shuffleGanonsSoul ? RO_BOSS_SOULS_ON
                                                            : slotData.value("shuffle_boss_souls", 0));
     mOptions[RSK_GANONS_SOUL].Set(shuffleGanonsSoul ? RO_GANONS_SOUL_ANYWHERE : RO_GANONS_SOUL_STARTWITH);
+    // Added in apworld 1.5. The win condition is numbered like RO_WINCON_* (Defeat Ganon, Anywhere, Trigger-Stones to
+    // Trigger-Tokens), Ganon's Soul like RO_GANONS_SOUL_* after its "With Boss Souls" value, which the apworld resolves
+    // before sending. The Greg modifiers are numbered like RO_CHECK_TRIGGER_*_REWARD.
+    if (slotData.contains("win_condition") && slotData.value("triforce_hunt", 0) != 1) {
+        mOptions[RSK_WINCON].Set(slotData.value("win_condition", 0));
+        mOptions[RSK_WINCON_STONE_COUNT].Set(slotData.value("win_condition_stones_required", 0));
+        mOptions[RSK_WINCON_MEDALLION_COUNT].Set(slotData.value("win_condition_medallions_required", 0));
+        mOptions[RSK_WINCON_REWARD_COUNT].Set(slotData.value("win_condition_dungeon_rewards_required", 0));
+        mOptions[RSK_WINCON_DUNGEON_COUNT].Set(slotData.value("win_condition_dungeons_required", 0));
+        mOptions[RSK_WINCON_TOKEN_COUNT].Set(slotData.value("win_condition_skull_tokens_required", 0));
+        mOptions[RSK_WINCON_OPTIONS].Set(slotData.value("win_condition_greg_modifier", 0));
+    }
+    if (slotData.value("ganons_soul", 0) > 0) {
+        mOptions[RSK_GANONS_SOUL].Set(slotData.value("ganons_soul", 0) - 1);
+        mOptions[RSK_GANONS_SOUL_STONE_COUNT].Set(slotData.value("ganons_soul_stones_required", 0));
+        mOptions[RSK_GANONS_SOUL_MEDALLION_COUNT].Set(slotData.value("ganons_soul_medallions_required", 0));
+        mOptions[RSK_GANONS_SOUL_REWARD_COUNT].Set(slotData.value("ganons_soul_dungeon_rewards_required", 0));
+        mOptions[RSK_GANONS_SOUL_DUNGEON_COUNT].Set(slotData.value("ganons_soul_dungeons_required", 0));
+        mOptions[RSK_GANONS_SOUL_TOKEN_COUNT].Set(slotData.value("ganons_soul_skull_tokens_required", 0));
+        mOptions[RSK_GANONS_SOUL_OPTIONS].Set(slotData.value("ganons_soul_greg_modifier", 0));
+    }
     if (slotData.value("shuffle_fish", 0) == 0) {
         mOptions[RSK_FISHSANITY].Set(RO_FISHSANITY_OFF);
     } else if (slotData.value("shuffle_fish", 0) == 1) {

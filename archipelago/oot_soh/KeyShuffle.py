@@ -83,6 +83,9 @@ def get_dungeon_item_prefill_items(world: "SohWorld", overworld_shuffle: bool) -
         if world.options.ganons_castle_boss_key == shuffle_setting and not world.options.triforce_hunt:
             shuffle_items.append(Items.GANONS_CASTLE_BOSS_KEY)
 
+        if world.options.ganons_soul == shuffle_setting:
+            shuffle_items.append(Items.GANONS_SOUL)
+
         # Small Keys
         small_key_option_mapping = small_key_option_matching(world)
         

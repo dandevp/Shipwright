@@ -154,8 +154,11 @@ def create_item_pool(world: "SohWorld") -> None:
         items_to_create[Items.BONGO_BONGOS_SOUL] = 1
         items_to_create[Items.TWINROVAS_SOUL] = 1
 
-    if world.options.shuffle_boss_souls == "on_plus_ganons":
+    if world.options.ganons_soul == "anywhere":
         items_to_create[Items.GANONS_SOUL] = 1
+
+    if world.options.win_condition == "anywhere" and not world.options.triforce_hunt:
+        items_to_create[Items.TRIFORCE] = 1
 
     # Dungeon Rewards
     if world.options.shuffle_dungeon_rewards == "anywhere":
@@ -408,8 +411,8 @@ def create_item_pool(world: "SohWorld") -> None:
                 items_to_create[Items.MORPHAS_SOUL] += 1
                 items_to_create[Items.BONGO_BONGOS_SOUL] += 1
                 items_to_create[Items.TWINROVAS_SOUL] += 1
-                if world.options.shuffle_boss_souls == "on_plus_ganons":
-                    items_to_create[Items.GANONS_SOUL] += 1
+            if world.options.ganons_soul == "anywhere":
+                items_to_create[Items.GANONS_SOUL] += 1
 
             if world.options.lock_overworld_doors:
                 items_to_create[Items.GUARD_HOUSE_KEY] += 1
@@ -534,7 +537,9 @@ def create_item_pool(world: "SohWorld") -> None:
                     items_to_create[Items.HEART_CONTAINER] -= create_special_progression_item(world, Items.HEART_CONTAINER, ItemClassification.useful, total_non_progression_hearts)
 
     # if Greg isn't necessary to win, make him filler
-    if not (world.options.rainbow_bridge == "greg" or (world.options.rainbow_bridge and world.options.rainbow_bridge_greg_modifier) or (world.options.ganons_castle_boss_key.is_trigger and world.options.ganons_castle_boss_key_greg_modifier)):
+    if not (world.options.rainbow_bridge == "greg" or (world.options.rainbow_bridge and world.options.rainbow_bridge_greg_modifier) or (world.options.ganons_castle_boss_key.is_trigger and world.options.ganons_castle_boss_key_greg_modifier)
+            or (world.options.win_condition.is_trigger and not world.options.triforce_hunt and world.options.win_condition_greg_modifier)
+            or (world.options.ganons_soul.is_trigger and world.options.ganons_soul_greg_modifier)):
         items_to_create[Items.GREG_THE_GREEN_RUPEE] -= create_special_progression_item(
             world, Items.GREG_THE_GREEN_RUPEE, ItemClassification.filler)
 

@@ -284,7 +284,7 @@ item_data_table: dict[Items, SohItemData] = {
     Items.BUY_BOMBS535: SohItemData(None, IC.progression, 0, tags=GroupTag.Purchasable_Item),
     Items.BUY_RED_POTION40: SohItemData(None, IC.progression, 0, tags=GroupTag.Purchasable_Item),
     Items.BUY_RED_POTION50: SohItemData(None, IC.progression, 0, tags=GroupTag.Purchasable_Item),
-    # Items.TRIFORCE: SohItemData( 193, IC.progression, 0 ),
+    Items.TRIFORCE: SohItemData(193, IC.progression, 0),
     Items.TRIFORCE_PIECE: SohItemData(194, IC.progression_skip_balancing, 0, tags=GroupTag.Golden_Item),
     Items.GOHMAS_SOUL: SohItemData(195, IC.progression, 0, tags=GroupTag.Boss_Soul | GroupTag.Deku_Tree_Item),
     Items.KING_DODONGOS_SOUL: SohItemData(196, IC.progression, 0, tags=GroupTag.Boss_Soul | GroupTag.Dodongos_Cavern_Item),
