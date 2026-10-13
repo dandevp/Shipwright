@@ -375,7 +375,10 @@ def set_region_rules(world: "SohWorld") -> None:
         (Locations.KAK_TRADE_ODD_MUSHROOM,
          lambda bundle: is_adult(bundle) & can_use(Items.ODD_MUSHROOM, bundle)),
         (Locations.KAK_GRANNYS_SHOP,
-         lambda bundle: is_adult(bundle) & can_afford_slot(Locations.KAK_GRANNYS_SHOP, bundle) & can_use(Items.ODD_MUSHROOM, bundle) & trade_quest_step(Items.ODD_MUSHROOM, bundle))
+         lambda bundle: is_adult(bundle) & can_afford_slot(Locations.KAK_GRANNYS_SHOP, bundle)
+         & ((can_use(Items.ODD_MUSHROOM, bundle) & trade_quest_step(Items.ODD_MUSHROOM, bundle))
+            | (OptionFilter(ShuffleAdultTradeItems, False)
+               & (has_item(Items.CLAIM_CHECK, bundle) | OptionFilter(EarlyGrannysShop, True)))))
     ])
     # Connections
     connect_regions(Regions.KAK_GRANNYS_POTION_SHOP, world, [

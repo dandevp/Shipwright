@@ -151,7 +151,7 @@ def setup_options_from_slot_data(world: "SohWorld") -> None:
             world.options.medallion_locked_trials.value = world.passthrough.get("medallion_locked_trials", MedallionLockedTrials.default)
             world.options.starting_hearts.value = world.passthrough.get("starting_hearts", StartingHearts.default)
             # Added in 1.5
-            for key in ("win_condition", "win_condition_stones_required", "win_condition_medallions_required", "win_condition_dungeon_rewards_required", "win_condition_dungeons_required", "win_condition_skull_tokens_required", "win_condition_greg_modifier", "ganons_soul", "ganons_soul_stones_required", "ganons_soul_medallions_required", "ganons_soul_dungeon_rewards_required", "ganons_soul_dungeons_required", "ganons_soul_skull_tokens_required", "ganons_soul_greg_modifier"):
+            for key in slot_data_options_15:
                 option = getattr(world.options, key)
                 option.value = world.passthrough.get(key, option.default)
             # when adding new options to this, use .get, and set the default to whatever was before the option was made

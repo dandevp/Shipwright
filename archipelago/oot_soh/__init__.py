@@ -11,7 +11,7 @@ from Fill import fill_restrictive
 from .location_access.overworld.castle_grounds import LocalEvents
 from .Items import SohItem, item_data_table, item_table, SohItemData, progressive_items
 from .Locations import location_table, token_amounts, SohLocData, location_data_table
-from .Options import SohOptions, soh_option_groups, wallet_capacities, GanonsSoul
+from .Options import SohOptions, soh_option_groups, wallet_capacities, GanonsSoul, slot_data_options_15
 from .Regions import create_regions_and_locations, place_locked_items
 from .Enums import *
 from .ItemPool import create_item_pool, create_filler_item_pool, create_triforce_pieces, get_filler_item, give_starting_items
@@ -418,7 +418,7 @@ class SohWorld(CachedRuleBuilderWorld):
     #                      regions_to_highlight=self.multiworld.get_all_state().reachable_regions[self.player])
 
     def fill_slot_data(self) -> dict[str, Any]:
-        return {
+        return {key: getattr(self.options, key).value for key in slot_data_options_15} | {
             "closed_forest": self.options.closed_forest.value,
             "kakariko_gate": self.options.kakariko_gate.value,
             "door_of_time": self.options.door_of_time.value,
@@ -480,20 +480,6 @@ class SohWorld(CachedRuleBuilderWorld):
             "maps_and_compasses": self.options.maps_and_compasses.value,
             "ganons_castle_boss_key": self.options.ganons_castle_boss_key.value,
             "ganons_castle_boss_key_greg_modifier": self.options.ganons_castle_boss_key_greg_modifier.value,
-            "win_condition": self.options.win_condition.value,
-            "win_condition_stones_required": self.options.win_condition_stones_required.value,
-            "win_condition_medallions_required": self.options.win_condition_medallions_required.value,
-            "win_condition_dungeon_rewards_required": self.options.win_condition_dungeon_rewards_required.value,
-            "win_condition_dungeons_required": self.options.win_condition_dungeons_required.value,
-            "win_condition_skull_tokens_required": self.options.win_condition_skull_tokens_required.value,
-            "win_condition_greg_modifier": self.options.win_condition_greg_modifier.value,
-            "ganons_soul": self.options.ganons_soul.value,
-            "ganons_soul_stones_required": self.options.ganons_soul_stones_required.value,
-            "ganons_soul_medallions_required": self.options.ganons_soul_medallions_required.value,
-            "ganons_soul_dungeon_rewards_required": self.options.ganons_soul_dungeon_rewards_required.value,
-            "ganons_soul_dungeons_required": self.options.ganons_soul_dungeons_required.value,
-            "ganons_soul_skull_tokens_required": self.options.ganons_soul_skull_tokens_required.value,
-            "ganons_soul_greg_modifier": self.options.ganons_soul_greg_modifier.value,
             "ganons_castle_boss_key_stones_required": self.options.ganons_castle_boss_key_stones_required.value,
             "ganons_castle_boss_key_medallions_required": self.options.ganons_castle_boss_key_medallions_required.value,
             "ganons_castle_boss_key_dungeon_rewards_required": self.options.ganons_castle_boss_key_dungeon_rewards_required.value,

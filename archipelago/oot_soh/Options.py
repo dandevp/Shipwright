@@ -1269,6 +1269,20 @@ class SlingbowBreakBeehives(DefaultOnToggle):
     display_name = "Slingshot and Bow Can Break Beehives"
 
 
+class SwordlessEponaItems(Toggle):
+    """
+    Allows using items while riding Epona without a sword equipped. Without it, a swordless Link can't use items on Epona.
+    """
+    display_name = "Swordless Epona Items"
+
+
+class EarlyGrannysShop(Toggle):
+    """
+    If Adult Trade Items aren't shuffled, Granny's Potion Shop sells its item without having to finish the trade quest first.
+    """
+    display_name = "Early Granny's Shop"
+
+
 class StartingAge(Choice):
     """
     Decide whether to start as child Link or adult Link.
@@ -1898,6 +1912,8 @@ class SohOptions(PerGameCommonOptions):
     infinite_upgrades: InfiniteUpgrades
     skeleton_key: SkeletonKey
     slingbow_break_beehives: SlingbowBreakBeehives
+    swordless_epona_items: SwordlessEponaItems
+    early_grannys_shop: EarlyGrannysShop
     starting_age: StartingAge
     shuffle_100_gs_reward: Shuffle100GSReward
     ice_trap_count: IceTrapCount
@@ -2127,6 +2143,28 @@ class SohOptions(PerGameCommonOptions):
                 decrement_option(getattr(self, f"{prefix}_{kind}_required"))
 
 
+# Options added in apworld 1.5. Each is sent in slot data under its own name, and read back by Universal Tracker
+# with its default when missing (a 1.4 seed). Add new options here.
+slot_data_options_15: tuple[str, ...] = (
+    "win_condition",
+    "win_condition_stones_required",
+    "win_condition_medallions_required",
+    "win_condition_dungeon_rewards_required",
+    "win_condition_dungeons_required",
+    "win_condition_skull_tokens_required",
+    "win_condition_greg_modifier",
+    "ganons_soul",
+    "ganons_soul_stones_required",
+    "ganons_soul_medallions_required",
+    "ganons_soul_dungeon_rewards_required",
+    "ganons_soul_dungeons_required",
+    "ganons_soul_skull_tokens_required",
+    "ganons_soul_greg_modifier",
+    "swordless_epona_items",
+    "early_grannys_shop",
+)
+
+
 soh_option_groups = [
     OptionGroup("Area Access", [
         ClosedForest,
@@ -2264,6 +2302,7 @@ soh_option_groups = [
         SkipEponaRace,
         CompleteMaskQuest,
         SkipScarecrowsSong,
+        EarlyGrannysShop,
     ]),
     OptionGroup("Item Pool & Traps", [
         ItemPool,
@@ -2334,6 +2373,7 @@ soh_option_groups = [
         SunlightArrows,
         InfiniteUpgrades,
         SkeletonKey,
-        SlingbowBreakBeehives
+        SlingbowBreakBeehives,
+        SwordlessEponaItems,
     ])
 ]

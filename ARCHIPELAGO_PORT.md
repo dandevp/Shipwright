@@ -31,6 +31,8 @@ The work has two sides, and every feature needs both:
 
 ## Compatibility rules
 
+- New options go in `slot_data_options_15` (`Options.py`): sent in slot data under their own name, and read back
+  by Universal Tracker with their default when a 1.4 seed doesn't have them.
 - The new apworld becomes world version **1.5.0** (`archipelago.json`). The client accepts 1.4.x **and** 1.5.x:
   every key added in 1.5 is read with a default that means "behave like 1.4".
 - Never renumber existing location or item ids. AP datapackages and running multiworlds depend on them.
@@ -95,8 +97,11 @@ Mostly slot data plus a little logic.
 - [x] ~~Skip Child Stealth~~: dummied out in the game's settings (`settings.cpp:1344`), the time saver covers it
 - [ ] Skip Planting Beans: port it together with the bean events commit 55b52a26a (`LOGIC_DRIFT.md`); the apworld
       still has the old per-patch bean logic
-- [ ] Early Granny's Shop, Masks as Adult, Bunny Hood, Progressive Goron Sword, Swordless Epona Items,
-      shop shields and tunics only refill
+- [x] Early Granny's Shop (`early_grannys_shop`; the shop's rule now also matches the C++ one with trade items off:
+      Claim Check or this option), Swordless Epona Items (`swordless_epona_items`, no logic)
+- [ ] Masks: port the mask rework (3175ea9c2: masks are items, "complete mask quest" became starting masks), then
+      Masks as Adult and logical Bunny Hood (eca767dcb). The apworld still borrows masks through mask shop events.
+- [ ] Progressive Goron Sword, shop shields and tunics only refill
 - [ ] All Checks Reachable (AP has `accessibility`; map `full` onto it)
 - [ ] Fishsanity: Hyrule Loach only, pond fish count, child/adult split
 - [ ] Ice trap names (`RSK_ICE_TRAP_NAMES`)

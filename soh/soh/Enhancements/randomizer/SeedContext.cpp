@@ -996,6 +996,8 @@ void Context::ParseArchipelagoOptions() {
         mOptions[RSK_GANONS_SOUL_TOKEN_COUNT].Set(slotData.value("ganons_soul_skull_tokens_required", 0));
         mOptions[RSK_GANONS_SOUL_OPTIONS].Set(slotData.value("ganons_soul_greg_modifier", 0));
     }
+    mOptions[RSK_SWORDLESS_EPONA_ITEMS].Set(slotData.value("swordless_epona_items", 0));
+    mOptions[RSK_EARLY_GRANNYS_SHOP].Set(slotData.value("early_grannys_shop", 0));
     if (slotData.value("shuffle_fish", 0) == 0) {
         mOptions[RSK_FISHSANITY].Set(RO_FISHSANITY_OFF);
     } else if (slotData.value("shuffle_fish", 0) == 1) {
