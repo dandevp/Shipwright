@@ -473,6 +473,7 @@ void Context::ParseArchipelago() {
     Random_Init(GetSeed());
     ParseArchipelagoItemsLocations(apClient.GetScoutedItems());
     ParseArchipelagoOptions();
+    PlaceArchipelagoTriggerItems();
     ParseArchipelagoTricks();
     ParseArchipelagoExcludedLocations();
     ParseArchipelagoHints();
@@ -509,6 +510,25 @@ void Context::ParseItemLocationsJson(const nlohmann::json& spoilerFileJson) {
         } else {
             itemLocationTable[rc].SetPlacedItem(StaticData::itemNameToEnum[it.value().get<std::string>()]);
         }
+    }
+}
+
+// The trigger checks (Ganon's Boss Key, Ganon's Soul, win condition) and Ganon aren't Archipelago locations: like the
+// internal generator does (item_pool.cpp), give them their fixed item locally, or reaching the trigger gives nothing.
+void Context::PlaceArchipelagoTriggerItems() {
+    if (mOptions[RSK_WINCON].Is(RO_WINCON_DEFEAT_GANON)) {
+        itemLocationTable[RC_GANON].SetPlacedItem(RG_TRIFORCE);
+    } else {
+        itemLocationTable[RC_GANON].SetPlacedItem(RG_BLUE_RUPEE);
+        if (mOptions[RSK_WINCON].Get() > RO_WINCON_ANYWHERE) {
+            itemLocationTable[RC_WINCON].SetPlacedItem(RG_TRIFORCE);
+        }
+    }
+    if (mOptions[RSK_GANONS_BOSS_KEY].Get() >= RO_GANON_BOSS_KEY_STONES) {
+        itemLocationTable[RC_GANONS_BOSS_KEY].SetPlacedItem(RG_GANONS_CASTLE_BOSS_KEY);
+    }
+    if (mOptions[RSK_GANONS_SOUL].Get() >= RO_GANONS_SOUL_STONES) {
+        itemLocationTable[RC_GANON_SOUL].SetPlacedItem(RG_GANON_SOUL);
     }
 }
 
@@ -811,6 +831,19 @@ void Context::ParseArchipelagoOptions() {
             break;
         case 7:
             mOptions[RSK_GANONS_BOSS_KEY].Set(RO_GANON_BOSS_KEY_TOKENS);
+            break;
+        // Added in apworld 1.5
+        case 8:
+            mOptions[RSK_GANONS_BOSS_KEY].Set(RO_GANON_BOSS_KEY_OWN_DUNGEON);
+            break;
+        case 9:
+            mOptions[RSK_GANONS_BOSS_KEY].Set(RO_GANON_BOSS_KEY_STARTWITH);
+            break;
+        case 10:
+            mOptions[RSK_GANONS_BOSS_KEY].Set(RO_GANON_BOSS_KEY_ANY_DUNGEON);
+            break;
+        case 11:
+            mOptions[RSK_GANONS_BOSS_KEY].Set(RO_GANON_BOSS_KEY_OVERWORLD);
             break;
     }
     mOptions[RSK_SKIP_CHILD_STEALTH].Set(RO_GENERIC_NO);

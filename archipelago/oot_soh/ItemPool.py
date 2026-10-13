@@ -534,7 +534,7 @@ def create_item_pool(world: "SohWorld") -> None:
                     items_to_create[Items.HEART_CONTAINER] -= create_special_progression_item(world, Items.HEART_CONTAINER, ItemClassification.useful, total_non_progression_hearts)
 
     # if Greg isn't necessary to win, make him filler
-    if not (world.options.rainbow_bridge == "greg" or (world.options.rainbow_bridge and world.options.rainbow_bridge_greg_modifier) or (world.options.ganons_castle_boss_key and world.options.ganons_castle_boss_key_greg_modifier)):
+    if not (world.options.rainbow_bridge == "greg" or (world.options.rainbow_bridge and world.options.rainbow_bridge_greg_modifier) or (world.options.ganons_castle_boss_key.is_trigger and world.options.ganons_castle_boss_key_greg_modifier)):
         items_to_create[Items.GREG_THE_GREEN_RUPEE] -= create_special_progression_item(
             world, Items.GREG_THE_GREEN_RUPEE, ItemClassification.filler)
 

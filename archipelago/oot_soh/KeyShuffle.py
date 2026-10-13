@@ -26,6 +26,9 @@ def get_own_dungeon_prefill_items(world: "SohWorld") -> dict[DungeonLocations, l
             key_shuffle_locations[DungeonLocations.SPIRIT_TEMPLE].append(Items.SPIRIT_TEMPLE_BOSS_KEY)
             key_shuffle_locations[DungeonLocations.SHADOW_TEMPLE].append(Items.SHADOW_TEMPLE_BOSS_KEY)
 
+        if world.options.ganons_castle_boss_key == "own_dungeon" and not world.options.triforce_hunt:
+            key_shuffle_locations[DungeonLocations.GANONS_CASTLE].append(Items.GANONS_CASTLE_BOSS_KEY)
+
         # Small Keys
         small_key_option_mapping = small_key_option_matching(world)
         
@@ -76,6 +79,9 @@ def get_dungeon_item_prefill_items(world: "SohWorld", overworld_shuffle: bool) -
         # Boss Keys
         if world.options.boss_key_shuffle == shuffle_setting:
             shuffle_items += [Items.FOREST_TEMPLE_BOSS_KEY, Items.FIRE_TEMPLE_BOSS_KEY, Items.WATER_TEMPLE_BOSS_KEY, Items.SPIRIT_TEMPLE_BOSS_KEY, Items.SHADOW_TEMPLE_BOSS_KEY]
+
+        if world.options.ganons_castle_boss_key == shuffle_setting and not world.options.triforce_hunt:
+            shuffle_items.append(Items.GANONS_CASTLE_BOSS_KEY)
 
         # Small Keys
         small_key_option_mapping = small_key_option_matching(world)

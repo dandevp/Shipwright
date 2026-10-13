@@ -9,6 +9,7 @@ class EventLocations(StrEnum):
     ROOT_DEKU_SHIELD = "Root Deku Shield"
     ROOT_HYLIAN_SHIELD = "Root Hylian Shield"
     TRIFORCE_HUNT_COMPLETION = "Triforce Hunt Completion"
+    GANONS_BOSS_KEY_TRIGGER = "Ganon's Boss Key Trigger"
 
 
 def set_region_rules(world: "SohWorld") -> None:
@@ -17,6 +18,10 @@ def set_region_rules(world: "SohWorld") -> None:
     if bool(world.options.triforce_hunt):
         add_events(Regions.ROOT, world, [
             (EventLocations.TRIFORCE_HUNT_COMPLETION, Events.GAME_COMPLETED, lambda bundle: CanWinTriforceHunt())
+        ])
+    if world.options.ganons_castle_boss_key.is_trigger and not world.options.triforce_hunt:
+        add_events(Regions.ROOT, world, [
+            (EventLocations.GANONS_BOSS_KEY_TRIGGER, Items.GANONS_CASTLE_BOSS_KEY, lambda bundle: can_trigger_gbk(bundle))
         ])
     # Locations
     add_locations(Regions.ROOT, world, [

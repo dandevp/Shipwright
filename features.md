@@ -21,6 +21,9 @@ enemies between teammates, so they can play through the same areas together.
   settings in `archipelago/oot_soh`, see `ARCHIPELAGO_PORT.md`). Slot options missing from the slot data fall back to
   defaults instead of failing. Locations and items whose names the game doesn't know are reported in the Archipelago
   console and left out, instead of becoming an invalid check.
+- On an Archipelago save, reaching a trigger (Ganon's Boss Key, Ganon's Soul, a Triforce Hunt win) gives its item like in
+  a normal randomizer seed. With apworld 1.5, Ganon's Boss Key can also be in Ganon's Castle, any dungeon, the overworld
+  or the starting items, and the Light Arrow Cutscene holds a random item.
 - Saves of the official Archipelago client (1.4.x) are recognized as Archipelago saves, but like any randomizer save
   of another SoH version (theirs is 9.2.3) they're moved aside as outdated: start a new file on the same slot, the
   server sends its items and checked locations again.

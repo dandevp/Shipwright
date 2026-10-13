@@ -702,8 +702,13 @@ class GanonsCastleBossKey(Choice):
     """
     Vanilla - Ganon's Boss Key will appear in the vanilla location.
     Anywhere - Ganon's Boss Key can appear anywhere.
-    LACS - These settings put the boss key on the Light Arrow Cutscene location, from Zelda in Temple of Time as adult, with differing requirements:
-    - Vanilla: Obtain the Shadow Medallion and Spirit Medallion.
+    Own Dungeon - Ganon's Boss Key can appear anywhere in Ganon's Castle.
+    Start With - You start with Ganon's Boss Key.
+    Any Dungeon - Ganon's Boss Key can appear in any dungeon.
+    Overworld - Ganon's Boss Key can appear anywhere outside of dungeons.
+    LACS - These settings give you the boss key as soon as you meet a requirement, wherever you are.
+    (The Light Arrow Cutscene itself always needs the Shadow and Spirit Medallions, and holds a random item.)
+    - Vanilla: Obtain two medallions (the logic expects the Shadow and Spirit Medallions).
     - Stones: Obtain the specified amount of Spiritual Stones.
     - Medallions: Obtain the specified amount of medallions.
     - Dungeon rewards: Obtain the specified total sum of Spiritual Stones or medallions.
@@ -719,7 +724,15 @@ class GanonsCastleBossKey(Choice):
     option_lacs_dungeon_rewards = 5
     option_lacs_dungeons = 6
     option_lacs_skull_tokens = 7
+    option_own_dungeon = 8
+    option_start_with = 9
+    option_any_dungeon = 10
+    option_overworld = 11
     default = 5
+
+    @property
+    def is_trigger(self) -> bool:
+        return self.option_lacs_vanilla <= self.value <= self.option_lacs_skull_tokens
 
 
 class GanonsCastleBossKeyGregModifier(Choice):

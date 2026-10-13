@@ -469,10 +469,7 @@ def place_locked_items(world: "SohWorld") -> None:
             world.random.shuffle(dungeon_rewards)
             place_locked_item(Locations.LINKS_POCKET, dungeon_rewards[0], world)
 
-    # Place Ganons Boss Key
-    if not world.options.ganons_castle_boss_key == "vanilla" and not world.options.ganons_castle_boss_key == "anywhere" and not world.options.triforce_hunt:
-        place_locked_item(Locations.MARKET_TOT_LIGHT_ARROW_CUTSCENE, Items.GANONS_CASTLE_BOSS_KEY, world)
-
+    # Place Ganons Boss Key. The LACS options are triggers, given by the event in root.py.
     if world.options.ganons_castle_boss_key == "vanilla" and not world.options.triforce_hunt:
         place_locked_item(Locations.GANONS_CASTLE_TOWER_BOSS_KEY_CHEST, Items.GANONS_CASTLE_BOSS_KEY, world)
 

@@ -41,7 +41,7 @@ Tags:
 | [ ] | 1fd3a467c | 3 | 0 | feature | Add Kakariko watchtower butterfly fairy (#6839): butterfly fairies, Phase 3 |
 | [ ] | ed4868f62 | 9 | 0 | feature | Check for the Wolfos Gate before letting child out of SFM without climb (#6851): climb, Phase 2 |
 | [ ] | c76d17552 | 7 | 4 | mq | DC MQ: RT_VISIBLE_COLLISION to reach above stairs with hookshot (#6840) |
-| [ ] | 015440fdf | 115 | 0 | feature | Decouple GBK from LACS (#5838): Ganon's Boss Key triggers, Phase 1 |
+| [x] | 015440fdf | 115 | 0 | feature | Decouple GBK from LACS (#5838): Ganon's Boss Key triggers, Phase 1 |
 | [ ] | 1ae55a0a7 | 2 | 0 | feature | Add water switch signs to shuffle signs (#6876): signs, Phase 3 |
 | [x] | 29d4ff420 | 18 | 0 | none | Decomp, update AudioOcarina (#6941) |
 | [ ] | d3dc95d8f | 50 | 29 | none? | cleanup region names (#6943): region names only matter if the apworld shares them |

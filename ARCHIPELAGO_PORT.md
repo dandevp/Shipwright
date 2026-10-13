@@ -72,7 +72,12 @@ The work has two sides, and every feature needs both:
 
 Mostly slot data plus a little logic.
 
-- [ ] Ganon's Boss Key: Own Dungeon, Start With, Any Dungeon, Overworld (`ganons_castle_boss_key`)
+- [x] Ganon's Boss Key: Own Dungeon, Start With, Any Dungeon, Overworld (`ganons_castle_boss_key` 8-11). The LACS
+      values are triggers like in the game since 015440fdf: the key is a logic event, and the Light Arrow Cutscene is a
+      normal check with its vanilla rule (adult + Shadow + Spirit).
+- [x] Client: the trigger checks (`RC_GANONS_BOSS_KEY`, `RC_GANON_SOUL`, `RC_WINCON`) and `RC_GANON` get their fixed
+      item locally (`PlaceArchipelagoTriggerItems`), as `item_pool.cpp` does. Before, they held nothing on an AP save: a
+      1.4 LACS seed never gave the boss key from its trigger, and a Triforce Hunt never warped to the credits.
 - [ ] Win condition: Anywhere and the Stones/Medallions/Rewards/Dungeons/Tokens triggers (`RSK_WINCON`), plus
       `RSK_WINCON_OPTIONS` (Greg) and the counts
 - [ ] Ganon's Soul: Any Dungeon, Overworld, triggers (`RSK_GANONS_SOUL`), plus `RSK_GANONS_SOUL_OPTIONS` and the counts
@@ -150,6 +155,8 @@ The largest phase. It uses Archipelago's generic entrance randomization (`entran
 
 Newest first. One line per commit or decision.
 
+- 2026-10-13: Ganon's Boss Key options + trigger items. All 12 GBK values generate (one multiworld, a player each)
+  and land where expected. Client not compiled yet.
 - 2026-10-13: name check tool + generate script; the apworld's names now all resolve in the game. The two DC pots
   moved to `DODONGOS_CAVERN_NEAR_LOWER_LIZALFOS` like in C++ (78e3683ef). Location ids unchanged.
 - 2026-10-13: Phase 0 client groundwork: boss key fix, `.value()` slot data reads (`starting_hearts`

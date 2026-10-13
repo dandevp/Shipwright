@@ -280,6 +280,9 @@ class SohWorld(CachedRuleBuilderWorld):
             self.push_precollected(self.create_item(
                 Items.PROGRESSIVE_WALLET, create_as_event=True))
 
+        if self.options.ganons_castle_boss_key == "start_with" and not self.options.triforce_hunt:
+            self.push_precollected(self.create_item(Items.GANONS_CASTLE_BOSS_KEY, create_as_event=True))
+
         # Pre-Collect Extra Fire Temple Small Key
         if self.options.small_key_shuffle in ("vanilla", "own_dungeon"):
             self.multiworld.push_precollected(

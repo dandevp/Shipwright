@@ -1180,8 +1180,12 @@ def can_build_rainbow_bridge(bundle: tuple[Regions, "SohWorld"]) -> Rule:
 
 
 def can_trigger_lacs(bundle: tuple[Regions, "SohWorld"]) -> Rule:
+    return has_item(Items.SHADOW_MEDALLION, bundle) & has_item(Items.SPIRIT_MEDALLION, bundle)
+
+
+def can_trigger_gbk(bundle: tuple[Regions, "SohWorld"]) -> Rule:
     greg = FromOption(GanonsCastleBossKeyGregModifier)
-    return (OptionFilter(GanonsCastleBossKey, [GanonsCastleBossKey.option_vanilla, GanonsCastleBossKey.option_anywhere, GanonsCastleBossKey.option_lacs_vanilla], operator="in") & has_item(Items.SHADOW_MEDALLION, bundle) & has_item(Items.SPIRIT_MEDALLION, bundle)) \
+    return (OptionFilter(GanonsCastleBossKey, GanonsCastleBossKey.option_lacs_vanilla) & has_item(Items.SHADOW_MEDALLION, bundle) & has_item(Items.SPIRIT_MEDALLION, bundle)) \
          | (OptionFilter(GanonsCastleBossKey, GanonsCastleBossKey.option_lacs_stones) & ItemsPlusGregEnough(target=FromOption(GanonsCastleBossKeyStonesRequired), item_tag=GroupTag.Spiritual_Stone, greg=greg))\
          | (OptionFilter(GanonsCastleBossKey, GanonsCastleBossKey.option_lacs_medallions) & ItemsPlusGregEnough(target=FromOption(GanonsCastleBossKeyMedallionsRequired), item_tag=GroupTag.Medallion, greg=greg)) \
          | (OptionFilter(GanonsCastleBossKey, GanonsCastleBossKey.option_lacs_dungeon_rewards) & ItemsPlusGregEnough(target=FromOption(GanonsCastleBossKeyDungeonRewardsRequired), item_tag=GroupTag.Spiritual_Stone | GroupTag.Medallion, greg=greg)) \
