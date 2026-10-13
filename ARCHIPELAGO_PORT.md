@@ -148,6 +148,6 @@ The largest phase. It uses Archipelago's generic entrance randomization (`entran
 Newest first. One line per commit or decision.
 
 - 2026-10-13: Phase 0 client groundwork: boss key fix, `.value()` slot data reads (`starting_hearts`
-  defaults to 3, the rest to 0), 1.4/1.5 version check, unknown name logging, apworld 1.5.0. **Not compiled yet.**
+  defaults to 3, the rest to 0), 1.4/1.5 version check, unknown name logging, apworld 1.5.0. Compiles (Linux, build-cmake); not play-tested.
 - 2026-10-13: branch created from `ci/windows-build` (`5d11222c7`); apworld 1.4.2 copied in as baseline (`fe52dddb2`).
   The client's mapping (`ParseArchipelagoOptions`) was compared with every `RSK_*` setting; the gaps are the phases above.
