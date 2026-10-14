@@ -7,6 +7,11 @@
 #include <ship/resource/ResourceManager.h>
 #include <stb_image.h>
 
+#include <mutex>
+#include <unordered_set>
+
+#include <spdlog/spdlog.h>
+
 #include "ResourceManagerHelpers.h"
 #include "OTRGlobals.h"
 #include "cvar_prefixes.h"
@@ -27,6 +32,20 @@ extern "C" {
 }
 
 extern "C" PlayState* gPlayState;
+
+// Callers dereference what they load, so a missing asset crashes right after this. The usual cause
+// is an archive extracted from older asset specs, which would otherwise be hard to tell from the crash.
+static void ResourceMgr_ReportMissingAsset(const char* path) {
+    static std::mutex sMutex;
+    static std::unordered_set<std::string> sReported;
+
+    std::lock_guard<std::mutex> lock(sMutex);
+    if (sReported.insert(path).second) {
+        SPDLOG_ERROR("Missing asset {}. If oot.o2r or oot-mq.o2r came from an older build of SoH, delete them "
+                     "and let the game extract them again.",
+                     path);
+    }
+}
 
 struct LinkTunicDListCacheKey {
     size_t operator()(const std::pair<std::string, const char*>& key) const {
@@ -651,13 +670,14 @@ extern "C" AnimationHeaderCommon* ResourceMgr_LoadAnimByName(const char* path) {
                 // Alt loaded but is invalid (broken), fall through to original path
             }
         }
-
-        // Fall back to original path
-        return (AnimationHeaderCommon*)ResourceGetDataByName(path);
     }
 
-    // Alt OFF: use original path directly
-    return (AnimationHeaderCommon*)ResourceGetDataByName(path);
+    // Alt OFF, or no usable alt: use the original path
+    AnimationHeaderCommon* animHeader = (AnimationHeaderCommon*)ResourceGetDataByName(path);
+    if (animHeader == NULL) {
+        ResourceMgr_ReportMissingAsset(path);
+    }
+    return animHeader;
 }
 
 extern "C" SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, SkelAnime* skelAnime) {
@@ -679,6 +699,10 @@ extern "C" SkeletonHeader* ResourceMgr_LoadSkeletonByName(const char* path, Skel
     // If there isn't an alternate model, load the regular one
     if (isAlt && skelHeader == NULL) {
         skelHeader = (SkeletonHeader*)ResourceGetDataByName(path);
+    }
+
+    if (skelHeader == NULL) {
+        ResourceMgr_ReportMissingAsset(path);
     }
 
     // This function is only called when a skeleton is initialized.

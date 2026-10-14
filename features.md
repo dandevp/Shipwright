@@ -337,3 +337,17 @@ None of these have been tested in the game yet:
   played by hand
 - [ ] A breakable that isn't loaded yet when a teammate on another seed breaks theirs stays whole for you
 - [ ] Matching mods doesn't compare their load order, and doesn't look into old `.otr` mods
+
+# Outdated ROM Archive Detection
+
+`oot.o2r` and `oot-mq.o2r` are stamped with a hash of the asset specs (`soh/assets/yml`) they were extracted from (an
+`assetVersion` file in the archive). At startup, an archive whose stamp doesn't match this build's specs is removed and
+the "Outdated ROM Archives" popup leads to extracting it again, as for a different major version. This catches asset
+renames between builds of the same version, which used to crash once the renamed asset was used (e.g. Business Scrubs
+in the Lost Woods after their animations were renamed).
+
+- The hash (`SOH_ASSET_VERSION`) is generated at build time by `CMake/GenerateAssetVersion.cmake` and recomputed only
+  when a spec changes. Both the game's extractor and the `ExtractAssets` target stamp archives with it.
+- Archives from before this change have no stamp, so they're extracted again once.
+- A missing animation or skeleton logs an error naming the asset and pointing at outdated archives, once per asset,
+  before the crash it leads to.
