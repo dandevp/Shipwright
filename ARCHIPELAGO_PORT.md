@@ -10,6 +10,16 @@ The work has two sides, and every feature needs both:
   turns the slot data into `RSK_*` options. The game then runs the internal randomizer's in-game code with those options.
   Locations are matched by name (`StaticData::locationNameToEnum`); items by name (`StaticData::itemNameToEnum`).
 
+## Current state (2026-10-14)
+
+- Last commit `ab8b38ffb`. Client compiles (Linux, `build-cmake`) with everything up to it; nothing play-tested
+  against a server yet.
+- Phase 0 done except porting the logic drift fixes (`archipelago/LOGIC_DRIFT.md`, the `fix` rows).
+- Phase 1: Ganon's Boss Key, win condition, Ganon's Soul, trials Random Number, Link's Pocket, ice trap names, Early
+  Granny's Shop, Swordless Epona Items done; each checked by generating seeds. Open: see the unchecked Phase 1 items.
+- Next candidates: Fishsanity extras, or the bean events drift commit 55b52a26a together with Skip Planting Beans.
+- Not done yet for anything: a play test with a generated seed on a local `MultiServer.py`.
+
 ## How to port one feature
 
 1. **Source of truth**: the C++ side. Option definition in `randomizer/settings.cpp`; locations in
@@ -166,12 +176,14 @@ The largest phase. It uses Archipelago's generic entrance randomization (`entran
 
 Newest first. One line per commit or decision.
 
+- 2026-10-14: client compiles with all changes up to `ab8b38ffb` (trigger items, GBK/wincon/soul mapping,
+  granny/epona, trials fix, options-before-items order, pocket/ice trap names). Not play-tested.
 - 2026-10-14: trials Random Number, Link's Pocket reward, ice trap names; fixed the trials mapping my `.value()`
   change had broken (every AP seed skipped the trials). Compared all slot data keys: client and apworld now agree.
 - 2026-10-13: Win condition and Ganon's Soul options. Generated one multiworld with every value of both (20
   players, 11 min): events/items land where expected, legacy `on_plus_ganons` and Triforce Hunt still behave like 1.4.
 - 2026-10-13: Ganon's Boss Key options + trigger items. All 12 GBK values generate (one multiworld, a player each)
-  and land where expected. Client not compiled yet.
+  and land where expected. (Compiled 2026-10-14.)
 - 2026-10-13: name check tool + generate script; the apworld's names now all resolve in the game. The two DC pots
   moved to `DODONGOS_CAVERN_NEAR_LOWER_LIZALFOS` like in C++ (78e3683ef). Location ids unchanged.
 - 2026-10-13: Phase 0 client groundwork: boss key fix, `.value()` slot data reads (`starting_hearts`
