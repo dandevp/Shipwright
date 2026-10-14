@@ -396,6 +396,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include/
     ${CMAKE_CURRENT_SOURCE_DIR}/src/
     ${CMAKE_CURRENT_SOURCE_DIR}/assets/
+    ${SOH_ASSET_VERSION_DIR}
     .
 )
 
@@ -694,6 +695,7 @@ add_custom_command(
 add_dependencies(${PROJECT_NAME}
     libultraship
     torch
+    SohAssetVersion
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")

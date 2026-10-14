@@ -60,6 +60,8 @@
 #if not defined(__SWITCH__) && not defined(__WIIU__)
 #include "Extractor/Extract.h"
 #endif
+#include "Extractor/TorchExtract.h"
+#include "SohAssetVersion.h"
 
 #include <fast/interpreter.h>
 
@@ -396,6 +398,40 @@ namespace SohGui {
 extern std::shared_ptr<SohGui::SohMenu> mSohMenu;
 }
 
+// The spec hash an archive was extracted with, or empty if it has none (extracted before archives were stamped).
+static std::string ReadAssetVersionFromOTR(const std::string& otrPath) {
+    auto archive = std::make_shared<Ship::O2rArchive>(otrPath);
+    if (!archive->Open()) {
+        return "";
+    }
+
+    auto file = archive->LoadFile(SohTorch::kAssetVersionFile);
+    if (file == nullptr || !file->IsLoaded) {
+        return "";
+    }
+
+    return std::string(file->Buffer->begin(), file->Buffer->end());
+}
+
+// An archive extracted from other specs than this build's can lack resources the code asks for
+// (e.g. after an asset rename), which only shows up as a crash once the asset is used. The game
+// version alone doesn't catch that, since specs change between releases.
+static bool ArchiveAssetsOutdated(const std::string& fileName) {
+    std::string otrPath = Ship::Context::LocateFileAcrossAppDirs(fileName, appShortName);
+    if (!std::filesystem::exists(otrPath)) {
+        return false;
+    }
+
+    std::string assetVersion = ReadAssetVersionFromOTR(otrPath);
+    if (assetVersion == SOH_ASSET_VERSION) {
+        return false;
+    }
+
+    SPDLOG_INFO("{} was extracted from asset version '{}', this build expects '{}'", fileName,
+                assetVersion.empty() ? "none" : assetVersion, SOH_ASSET_VERSION);
+    return true;
+}
+
 static bool RemoveArchiveAcrossAppDirs(const std::string& fileName) {
     for (const std::string& path : { Ship::Context::GetPathRelativeToAppDirectory(fileName, appShortName),
                                      Ship::Context::GetPathRelativeToAppBundle(fileName), "./" + fileName }) {
@@ -419,7 +455,8 @@ void OTRGlobals::RunExtract(int argc, char* argv[]) {
     OTRVersion vanillaVersion = DetectOTRVersion("oot.o2r", false);
     OTRVersion mqVersion = DetectOTRVersion("oot-mq.o2r", true);
 
-    bool shouldRegen = VerifyArchiveVersion(vanillaVersion) || VerifyArchiveVersion(mqVersion);
+    bool shouldRegen = VerifyArchiveVersion(vanillaVersion) || VerifyArchiveVersion(mqVersion) ||
+                       ArchiveAssetsOutdated("oot.o2r") || ArchiveAssetsOutdated("oot-mq.o2r");
 
     std::filesystem::path ownPath;
     std::vector<std::string> args;

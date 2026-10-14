@@ -285,14 +285,32 @@ quiet_dependency_tree(${CMAKE_CURRENT_SOURCE_DIR}/torch)
 
 target_compile_definitions(torch INTERFACE YAML_CPP_STATIC_DEFINE)
 
+# SOH_ASSET_VERSION, a hash of the extraction specs. Archives are stamped with it on extraction and
+# regenerated at startup when the stamp differs. Rehashed only when a spec changes.
+set(SOH_ASSET_VERSION_DIR ${CMAKE_BINARY_DIR}/generated)
+set(SOH_ASSET_VERSION_HEADER ${SOH_ASSET_VERSION_DIR}/SohAssetVersion.h)
+file(GLOB_RECURSE SOH_ASSET_SPECS CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/soh/assets/yml/*)
+add_custom_command(
+    OUTPUT ${SOH_ASSET_VERSION_HEADER}
+    COMMAND ${CMAKE_COMMAND}
+            -DASSET_DIR=${CMAKE_CURRENT_SOURCE_DIR}/soh/assets/yml
+            -DOUTPUT=${SOH_ASSET_VERSION_HEADER}
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/CMake/GenerateAssetVersion.cmake
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/CMake/GenerateAssetVersion.cmake ${SOH_ASSET_SPECS}
+    COMMENT "Hashing asset specs..."
+    VERBATIM
+)
+add_custom_target(SohAssetVersion DEPENDS ${SOH_ASSET_VERSION_HEADER})
+
 # Build-time ROM extraction. soh links torch as a static library, which compiles out torch's
 # own CLI, so this supplies an entry point around the same code the game runs.
 add_executable(soh-torch EXCLUDE_FROM_ALL
     ${CMAKE_CURRENT_SOURCE_DIR}/soh/assets/tools/torch-cli/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/soh/soh/Extractor/TorchExtract.cpp
 )
-target_include_directories(soh-torch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/soh/soh/Extractor)
+target_include_directories(soh-torch PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/soh/soh/Extractor ${SOH_ASSET_VERSION_DIR})
 target_link_libraries(soh-torch PRIVATE torch)
+add_dependencies(soh-torch SohAssetVersion)
 
 add_executable(soh-o2r-packer EXCLUDE_FROM_ALL
     ${CMAKE_CURRENT_SOURCE_DIR}/soh/assets/tools/soh-o2r-packer/main.cpp
