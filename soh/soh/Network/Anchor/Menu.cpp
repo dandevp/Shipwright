@@ -62,6 +62,37 @@ static void DrawCoopModelPicker(Anchor* anchor) {
     }
 }
 
+// How enemies pick who to go after in co-op (see Threat in CoopEnemyMirror.cpp). The room authority's settings apply,
+// so for playtesting everyone should set the same.
+static void DrawCoopAggroTuning() {
+    if (!ImGui::CollapsingHeader("Co-op Aggro Tuning")) {
+        return;
+    }
+
+    ImGui::TextWrapped("Enemies go after whoever has the most threat: damage dealt adds to it, and it fades away over "
+                       "time. The settings of the player running the room's enemies apply.");
+    auto slider = [](const char* label, const char* cvarName, f32 min, f32 max, f32 defaultValue, const char* format,
+                     const char* tooltip) {
+        UIWidgets::CVarSliderFloat(label, cvarName,
+                                   UIWidgets::FloatSliderOptions()
+                                       .Format(format)
+                                       .Min(min)
+                                       .Max(max)
+                                       .DefaultValue(defaultValue)
+                                       .Step(0.1f)
+                                       .Tooltip(tooltip)
+                                       .Color(THEME_COLOR));
+    };
+    slider("Threat Half-Life", CVAR_REMOTE_ANCHOR("Developer.ThreatHalfLife"), 1.0f, 30.0f, 8.0f, "%.1f s",
+           "How long it takes for a player's threat to fade to half");
+    slider("Switch Margin", CVAR_REMOTE_ANCHOR("Developer.ThreatSwitchMargin"), 1.0f, 3.0f, 1.2f, "x%.1f",
+           "How much more threat another player needs to draw an enemy away from its target");
+    slider("Hold Time", CVAR_REMOTE_ANCHOR("Developer.ThreatHoldTime"), 0.0f, 10.0f, 3.0f, "%.1f s",
+           "How long an enemy goes after its target at least, before it can switch to another player");
+    slider("Boss Hold Time", CVAR_REMOTE_ANCHOR("Developer.ThreatBossHoldTime"), 0.0f, 15.0f, 5.0f, "%.1f s",
+           "How long a boss goes after its target at least, before it can switch to another player");
+}
+
 void AnchorMainMenu(WidgetInfo& info) {
     auto anchor = Anchor::Instance;
 
@@ -167,6 +198,7 @@ void AnchorMainMenu(WidgetInfo& info) {
     ImGui::Spacing();
 
     DrawCoopModelPicker(anchor);
+    DrawCoopAggroTuning();
 
     if (!anchor->isEnabled) {
         return;

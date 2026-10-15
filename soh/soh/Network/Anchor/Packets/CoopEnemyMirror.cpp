@@ -1760,10 +1760,16 @@ bool Anchor::IsCoopRoomAuthority() {
 // MARK: - Threat
 
 /**
- * Enemies and bosses go after the most dangerous player in the room: whoever dealt them the most damage. The authority
- * keeps count, from the health its enemies lose, and who caused it: its own player, unless a teammate's hit on a
- * puppet, something a teammate did to a boss in their game (see getLocalEvent), or a shot a teammate sent back at it
- * (see the shots) came just before.
+ * Enemies and bosses go after the most dangerous player in the room: whoever has the most threat. Damage dealt adds to
+ * a player's threat, and threat fades away over time (halving every few seconds), so it's what a player did lately that
+ * counts. The authority keeps count, from the health its enemies lose, and who caused it: its own player, unless a
+ * teammate's hit on a puppet, something a teammate did to a boss in their game (see getLocalEvent), or a shot a
+ * teammate sent back at it (see the shots) came just before. It sends the count along with its snapshots, so whoever
+ * takes over the room carries on with it.
+ *
+ * To not bounce between players, an enemy only switches to another one once they have clearly more threat than its
+ * target (the switch margin), and not before it went after its target for a moment (the hold time). Bosses tire of
+ * their target: its threat fades twice as fast, so a fight with a boss takes turns between the players.
  *
  * A boss counts the damage to any of its parts together (Bongo Bongo's head for his hands, Volvagia flying and in the
  * holes). Twinrova's sisters count the hits they take up instead of losing health.
@@ -1772,11 +1778,19 @@ bool Anchor::IsCoopRoomAuthority() {
 #define THREAT_HIT_FRAMES 3    // A teammate's hit lands in the enemy's next update
 #define THREAT_EVENT_FRAMES 60 // What a teammate did to a boss (King Dodongo chokes on a bomb ~2 seconds later)
 #define THREAT_SHOT_FRAMES 150 // A shot a teammate sent back, until it hits the boss
+#define THREAT_MIN 0.5f        // Less than this counts as no threat at all
+#define THREAT_SYNC_FRAMES 20  // How often the authority sends the threat along with its snapshots
+#define GAMEPLAY_FPS 20.0f
 
 struct CoopThreat {
-    std::map<uint32_t, s32> damage; // By client id
+    std::map<uint32_t, f32> threat; // By client id
+    u32 lastDecayFrame = 0;
     uint32_t lastAttacker = 0;
     u32 lastAttackUntil = 0;
+    // Who it goes after (by client id, ours included), and since when
+    bool hasTarget = false;
+    uint32_t target = 0;
+    u32 targetSince = 0;
 };
 static ObjectExtension::Register<CoopThreat> CoopThreatRegister;
 static CoopThreat sCoopBossThreat; // One boss per room
@@ -1797,6 +1811,43 @@ static CoopThreat* GetCoopThreat(Actor* actor) {
     return threat;
 }
 
+// Tuning, from the developer settings (Network > Anchor > Developer)
+static f32 GetThreatHalfLifeFrames() {
+    return std::max(CVarGetFloat(CVAR_REMOTE_ANCHOR("Developer.ThreatHalfLife"), 8.0f), 0.5f) * GAMEPLAY_FPS;
+}
+
+static f32 GetThreatSwitchMargin() {
+    return std::max(CVarGetFloat(CVAR_REMOTE_ANCHOR("Developer.ThreatSwitchMargin"), 1.2f), 1.0f);
+}
+
+static u32 GetThreatHoldFrames(bool isBoss) {
+    f32 seconds = isBoss ? CVarGetFloat(CVAR_REMOTE_ANCHOR("Developer.ThreatBossHoldTime"), 5.0f)
+                         : CVarGetFloat(CVAR_REMOTE_ANCHOR("Developer.ThreatHoldTime"), 3.0f);
+    return (u32)(std::max(seconds, 0.0f) * GAMEPLAY_FPS);
+}
+
+// Lets the threat fade for the frames since it last did, at most once a frame
+static void DecayCoopThreat(CoopThreat* threat, bool isBoss) {
+    u32 now = gPlayState->gameplayFrames;
+    u32 frames = now - threat->lastDecayFrame;
+    threat->lastDecayFrame = now;
+    if (frames == 0) {
+        return;
+    }
+
+    f32 halfLife = GetThreatHalfLifeFrames();
+    std::erase_if(threat->threat, [&](auto& entry) {
+        bool isTired = isBoss && threat->hasTarget && entry.first == threat->target;
+        entry.second *= powf(0.5f, frames / (isTired ? halfLife / 2.0f : halfLife));
+        return entry.second < THREAT_MIN / 10.0f;
+    });
+}
+
+static f32 GetCoopThreatOf(const CoopThreat* threat, uint32_t clientId) {
+    auto it = threat->threat.find(clientId);
+    return it != threat->threat.end() ? it->second : 0.0f;
+}
+
 // A teammate did something to it that may cost it health in a moment
 static void RecordCoopAttacker(Actor* actor, uint32_t clientId, u32 frames) {
     CoopThreat* threat = GetCoopThreat(actor);
@@ -1815,9 +1866,36 @@ void RecordCoopDamage(Actor* actor, s32 healthBefore, s32 healthAfter) {
     }
 
     CoopThreat* threat = GetCoopThreat(actor);
+    DecayCoopThreat(threat, IsCoopBoss(actor));
     uint32_t attacker =
         gPlayState->gameplayFrames <= threat->lastAttackUntil ? threat->lastAttacker : Anchor::Instance->ownClientId;
-    threat->damage[attacker] += damage;
+    threat->threat[attacker] += damage;
+}
+
+// Sent along with the authority's snapshots, so whoever takes over the room carries on with it
+static nlohmann::json PrepCoopThreat(Actor* actor) {
+    CoopThreat* threat = GetCoopThreat(actor);
+    DecayCoopThreat(threat, IsCoopBoss(actor));
+    nlohmann::json json = nlohmann::json::object();
+    for (auto& [clientId, value] : threat->threat) {
+        json[std::to_string(clientId)] = value;
+    }
+    return { { "threat", json }, { "target", threat->hasTarget ? threat->target : 0 } };
+}
+
+static void ApplyCoopThreat(Actor* actor, nlohmann::json& json) {
+    CoopThreat* threat = GetCoopThreat(actor);
+    threat->threat.clear();
+    for (auto& [clientId, value] : json.at("threat").items()) {
+        threat->threat[(uint32_t)std::stoul(clientId)] = value.get<f32>();
+    }
+    threat->lastDecayFrame = gPlayState->gameplayFrames;
+    uint32_t target = json.at("target").get<uint32_t>();
+    if (target != 0 && (!threat->hasTarget || threat->target != target)) {
+        threat->hasTarget = true;
+        threat->target = target;
+        threat->targetSince = gPlayState->gameplayFrames;
+    }
 }
 
 // MARK: - Authority
@@ -1888,6 +1966,9 @@ void Anchor::SendCoopEnemySnapshots() {
                 enemy["worldRot"] = actor->world.rot;
                 const CoopEnemyTarget* target = ObjectExtension::GetInstance().Get<CoopEnemyTarget>(actor);
                 enemy["target"] = (target != nullptr && target->clientId != 0) ? target->clientId : ownClientId;
+            }
+            if (gPlayState->gameplayFrames % THREAT_SYNC_FRAMES == 0) {
+                enemy["threat"] = PrepCoopThreat(actor);
             }
             enemies.push_back(enemy);
         }
@@ -2112,6 +2193,9 @@ void Anchor::HandlePacket_CoopEnemySnapshot(nlohmann::json payload) {
         puppet->bossFight = (CoopBossFight)enemy.value("boss", (u8)COOP_BOSS_WAITING);
         puppet->worldRot = enemy.value("worldRot", actor->world.rot);
         puppet->targetClientId = enemy.value("target", (uint32_t)0);
+        if (enemy.contains("threat")) {
+            ApplyCoopThreat(actor, enemy["threat"]);
+        }
     }
 
     // Puppets whose enemy is gone from the authority's game without dying (like a small Floormaster merging back into
@@ -2829,70 +2913,80 @@ void Anchor::HandlePacket_CoopBossAim(nlohmann::json payload) {
 
 // MARK: - Targeting
 
-// Picks the player the enemy goes after: the one in the room who dealt it the most damage, or while nobody did yet, the
-// nearest one, sticking with the current one unless another is clearly closer
+// Whether a player can be gone after: not while they're dead, or in a cutscene (like getting the Master Sword back
+// from Ganon)
+static bool CanBeCoopTarget(Player* player) {
+    return player != nullptr && !(player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_IN_CUTSCENE));
+}
+
+// Picks the player the enemy goes after (see Threat): the one in the room with the most threat, or while nobody has
+// any, the nearest one. Either way it sticks with its target unless another player clearly has more threat or is
+// clearly closer.
 static Player* ChooseCoopEnemyTarget(Actor* actor, const std::vector<uint32_t>& peers, uint32_t& targetClientId) {
-    const CoopThreat* threat = GetCoopThreat(actor);
-    Player* mostDangerous = nullptr;
-    uint32_t mostDangerousClientId = 0;
-    s32 mostDamage = 0;
-    f32 mostDangerousDist = FLT_MAX;
-    auto considerThreat = [&](uint32_t clientId, Player* player) {
-        auto it = threat->damage.find(clientId);
-        s32 damage = it != threat->damage.end() ? it->second : 0;
-        f32 dist = Math_Vec3f_DistXYZ(&actor->world.pos, &player->actor.world.pos);
-        if (damage > mostDamage || (damage == mostDamage && damage > 0 && dist < mostDangerousDist)) {
-            mostDangerous = player;
-            mostDangerousClientId = clientId == Anchor::Instance->ownClientId ? 0 : clientId;
-            mostDamage = damage;
-            mostDangerousDist = dist;
-        }
-    };
-    considerThreat(Anchor::Instance->ownClientId, GET_PLAYER(gPlayState));
+    uint32_t ownClientId = Anchor::Instance->ownClientId;
+    bool isBoss = IsCoopBoss(actor);
+    CoopThreat* threat = GetCoopThreat(actor);
+    DecayCoopThreat(threat, isBoss);
+
+    std::vector<std::pair<uint32_t, Player*>> candidates;
+    if (CanBeCoopTarget(GET_PLAYER(gPlayState))) {
+        candidates.push_back({ ownClientId, GET_PLAYER(gPlayState) });
+    }
     for (uint32_t clientId : peers) {
         AnchorClient& client = Anchor::Instance->clients[clientId];
-        if (client.player != nullptr && !(client.player->stateFlags1 & PLAYER_STATE1_DEAD) && !client.isBossLeftOut) {
-            considerThreat(clientId, client.player);
+        if (CanBeCoopTarget(client.player) && !client.isBossLeftOut) {
+            candidates.push_back({ clientId, client.player });
         }
     }
-    if (mostDangerous != nullptr) {
-        targetClientId = mostDangerousClientId;
-        return mostDangerous;
+    if (candidates.empty()) {
+        targetClientId = 0;
+        return GET_PLAYER(gPlayState);
     }
 
-    CoopEnemyTarget* currentTarget = ObjectExtension::GetInstance().Get<CoopEnemyTarget>(actor);
-    uint32_t currentClientId = currentTarget != nullptr ? currentTarget->clientId : 0;
-
-    Player* best = GET_PLAYER(gPlayState);
-    uint32_t bestClientId = 0;
-    f32 bestDist = Math_Vec3f_DistXYZ(&actor->world.pos, &best->actor.world.pos);
-    f32 currentDist = currentClientId == 0 ? bestDist : FLT_MAX;
-
-    for (uint32_t clientId : peers) {
-        AnchorClient& client = Anchor::Instance->clients[clientId];
-        if (client.player == nullptr || (client.player->stateFlags1 & PLAYER_STATE1_DEAD) || client.isBossLeftOut) {
-            continue;
-        }
-
-        f32 dist = Math_Vec3f_DistXYZ(&actor->world.pos, &client.player->actor.world.pos);
-        if (clientId == currentClientId) {
+    std::pair<uint32_t, Player*>* current = nullptr;
+    std::pair<uint32_t, Player*>* mostDangerous = nullptr;
+    std::pair<uint32_t, Player*>* nearest = nullptr;
+    f32 mostThreat = 0.0f;
+    f32 nearestDist = FLT_MAX;
+    f32 currentDist = FLT_MAX;
+    for (auto& candidate : candidates) {
+        f32 value = GetCoopThreatOf(threat, candidate.first);
+        f32 dist = Math_Vec3f_DistXYZ(&actor->world.pos, &candidate.second->actor.world.pos);
+        if (threat->hasTarget && candidate.first == threat->target) {
+            current = &candidate;
             currentDist = dist;
         }
-        if (dist < bestDist) {
-            best = client.player;
-            bestClientId = clientId;
-            bestDist = dist;
+        if (value >= THREAT_MIN && value > mostThreat) {
+            mostDangerous = &candidate;
+            mostThreat = value;
+        }
+        if (dist < nearestDist) {
+            nearest = &candidate;
+            nearestDist = dist;
         }
     }
 
-    // Stay on the current target (if it's still around) unless the nearest player is clearly closer
-    if (bestClientId != currentClientId && currentDist != FLT_MAX && currentDist < bestDist + TARGET_SWITCH_DISTANCE) {
-        bestClientId = currentClientId;
-        best = currentClientId == 0 ? GET_PLAYER(gPlayState) : Anchor::Instance->clients[currentClientId].player;
+    std::pair<uint32_t, Player*>* chosen;
+    if (mostDangerous != nullptr) {
+        // The first damage draws its attention right away. After that, another player needs clearly more threat than
+        // its target, once it went after its target for a moment.
+        f32 currentThreat = current != nullptr ? GetCoopThreatOf(threat, current->first) : 0.0f;
+        bool isHeld = gPlayState->gameplayFrames - threat->targetSince < GetThreatHoldFrames(isBoss);
+        bool keepCurrent = current != nullptr && current != mostDangerous && currentThreat >= THREAT_MIN &&
+                           (mostThreat < currentThreat * GetThreatSwitchMargin() || isHeld);
+        chosen = keepCurrent ? current : mostDangerous;
+    } else {
+        // Nobody has any threat: the nearest, unless its target is about as close
+        chosen = (current != nullptr && currentDist < nearestDist + TARGET_SWITCH_DISTANCE) ? current : nearest;
     }
 
-    targetClientId = bestClientId;
-    return best;
+    if (!threat->hasTarget || threat->target != chosen->first) {
+        threat->hasTarget = true;
+        threat->target = chosen->first;
+        threat->targetSince = gPlayState->gameplayFrames;
+    }
+    targetClientId = chosen->first == ownClientId ? 0 : chosen->first;
+    return chosen->second;
 }
 
 // Runs the enemy's update with a teammate's dummy player standing in for our player, if that's who it goes after.

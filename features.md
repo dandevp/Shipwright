@@ -55,9 +55,18 @@ enemies between teammates, so they can play through the same areas together.
   - A player coming back from a pause doesn't take over again, their enemies stood still meanwhile.
 - Hitting a puppet hits the authority's enemy, with its own damage table, reaction and death. That goes for what you
   shoot, throw or set off too: arrows, slingshot seeds, bombs, and a Deku Nut's flash stunning it.
-- On the authority, enemies go after the most dangerous player in the room: whoever dealt them the most damage. While
-  nobody has hurt them yet, they go after the nearest player, and switch once another one is clearly closer. Their hits
-  on a teammate hurt that teammate.
+- On the authority, enemies go after the most dangerous player in the room: whoever has the most threat. Damage dealt
+  adds to a player's threat, and threat fades away over time (it halves every 8 seconds), so what counts is who hurt
+  them lately. While nobody has any threat, they go after the nearest player, and switch once another one is clearly
+  closer. Their hits on a teammate hurt that teammate.
+  - The first hit draws an enemy's attention right away. After that it only switches to another player once they have
+    clearly more threat than its target (20% more), and once it went after its target for at least 3 seconds (5 for
+    bosses).
+  - Bosses tire of their target: its threat fades twice as fast, so boss fights take turns between the players.
+  - Players who are dead or in a cutscene (like getting the Master Sword back from Ganon) aren't gone after.
+  - The authority sends the threat to the others every second, so whoever takes over the room carries on with it.
+  - These numbers can be tuned under Network > Anchor > Co-op Aggro Tuning. The settings of the player running the
+    room apply.
 - What they shoot is shown to everyone, but only the authority's copy can hurt anyone.
 - Mirrored enemies:
   - Armos, Baby Dodongo, Bari, Beamos, Biri, Bubble, Dead Hand and its hands, Dodongo
@@ -78,8 +87,8 @@ enemies between teammates, so they can play through the same areas together.
   - Unlike enemy puppets, a boss puppet keeps its own effects, sounds and animation, and only follows what the
     authority's boss is doing.
   - It goes after the same player as the authority's boss: it turns, aims and charges at them in everyone's game.
-    Like enemies, it goes after whoever dealt it the most damage (counting all its parts together), or the nearest
-    player while nobody has. A shot sent back at it, a bomb fed to King Dodongo and a beam reflected onto a Twinrova
+    Like enemies, it goes after whoever has the most threat (counting all its parts together), or the nearest player
+    while nobody has any. A shot sent back at it, a bomb fed to King Dodongo and a beam reflected onto a Twinrova
     sister count for the player who did it.
   - What a player does against its attack in their own game is shown in everyone's (a Twinrova sister's beam reflected
     by their Mirror Shield).
@@ -246,8 +255,8 @@ enemies between teammates, so they can play through the same areas together.
 - Enemies that act on the player they target directly (grab, freeze, damage outside of a normal hit) only go after the
   authority's own player:
   Floormaster, Wallmaster, ReDead, Gibdo, Like-Like, Moblin, Skulltula, Gerudo fighter, Dead Hand's hands.
-- Who dealt how much damage is counted by the authority. It starts over when another player takes over the room, and
-  when a room is entered again.
+- Threat is counted by the authority. It starts over when a room is entered again, and a player taking over the room
+  may miss up to a second of it.
 - An enemy touching a teammate's dummy player in your game doesn't count as a hit, and the enemy doesn't react to it
   either (like Ganon knocking back whoever his sword hit).
 - Hits from enemies run by a teammate always knock you back the same small way (plus burning, freezing or shocking),
