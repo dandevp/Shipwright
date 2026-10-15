@@ -126,6 +126,8 @@ enemies between teammates, so they can play through the same areas together.
   pots, bushes, crates, rocks and Cuccos placed in the room, as well as bombs, Bomb Flower bombs and anything else.
 - A teammate's player model shows the same pose as in their own game, including upper body animations like holding
   something over their head (sent as drawn, with animation blending, one frame behind their position).
+- A teammate holding up their shield holds it in their hand, also without a sword drawn (rather than it staying on
+  their back).
 - A teammate's bomb blows up in your game when it does in theirs. It is only the look and sound: its effects happen in
   their game and reach you through the rest of the sync.
 - Copies of a teammate's bombs don't count towards your own bomb limit. They have the size of the teammate's bomb, so
