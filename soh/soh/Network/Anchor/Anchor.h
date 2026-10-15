@@ -72,6 +72,7 @@ struct CoopCarriedObject {
     s16 params;
     Vec3f pos;
     Vec3s rot;
+    f32 scale;      // If not placed (a bag bomb starts at 0 and grows in its own update, which copies don't run)
     bool isShot;    // Something they shot or threw (arrow, seed, Deku Nut, boomerang), shown until it's gone
     Vec3s worldRot; // If a shot
 };

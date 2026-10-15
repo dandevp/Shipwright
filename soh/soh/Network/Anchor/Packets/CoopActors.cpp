@@ -886,6 +886,7 @@ void Anchor::AddCoopCarriedObject(nlohmann::json& payload) {
         } else {
             entry["actorId"] = actor->id;
             entry["params"] = actor->params;
+            entry["scale"] = actor->scale.x;
         }
         if (carry.isShot) {
             entry["shot"] = true;
@@ -918,6 +919,7 @@ void Anchor::ReadCoopCarriedObjects(AnchorClient& client, nlohmann::json& payloa
         } else {
             object.actorId = entry.at("actorId").get<s16>();
             object.params = entry.at("params").get<s16>();
+            object.scale = entry.value("scale", -1.0f);
         }
         object.pos = entry.at("pos").get<Vec3f>();
         object.rot = entry.at("rot").get<Vec3s>();
@@ -1025,6 +1027,9 @@ void Anchor::UpdateCoopCarriedCopies() {
 
                 copy->world.pos = object.pos;
                 copy->shape.rot = object.rot;
+                if (object.scale >= 0.0f) {
+                    Actor_SetScale(copy, object.scale);
+                }
                 if (object.isShot) {
                     copy->world.rot = object.worldRot;
                     if (copy->id == ACTOR_EN_BOOM) {

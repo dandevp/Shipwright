@@ -126,7 +126,8 @@ enemies between teammates, so they can play through the same areas together.
   something over their head (sent as drawn, with animation blending, one frame behind their position).
 - A teammate's bomb blows up in your game when it does in theirs. It is only the look and sound: its effects happen in
   their game and reach you through the rest of the sync.
-- Copies of a teammate's bombs don't count towards your own bomb limit.
+- Copies of a teammate's bombs don't count towards your own bomb limit. They have the size of the teammate's bomb, so
+  a bomb taken out of the bag grows in their hand and swells before it goes off like the real one.
 - Teammates see what you shoot or throw while it flies: arrows (including magic arrows, without their fire, ice or light
   effect around them), slingshot seeds, Deku Nuts and the boomerang. Their copies follow yours each frame and can't
   hit anything; what yours hits happens in your game and reaches them through the rest of the sync. Where a seed or
