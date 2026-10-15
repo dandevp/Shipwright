@@ -233,9 +233,13 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
     Collider_UpdateCylinder(&player->actor, &player->cylinder);
 
     if (!(player->stateFlags2 & PLAYER_STATE2_FROZEN)) {
-        // Without PvP other players aren't solid, as before
-        if (pvpEnabled && !(player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_HANGING_OFF_LEDGE |
-                                                   PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_ON_HORSE))) {
+        // Without PvP other players aren't solid to us, as before. In co-op they're solid to enemies, which can touch
+        // them (see ApplyCoopTouchingTarget in CoopEnemyMirror.cpp), but they never count as our player touching
+        // something (that's OC2_TYPE_PLAYER, like a Gold Skulltula token being collected).
+        player->cylinder.base.ocFlags1 = OC1_ON | (pvpEnabled ? OC1_TYPE_ALL : OC1_TYPE_1);
+        if ((pvpEnabled || coopEnemyHits) &&
+            !(player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_HANGING_OFF_LEDGE |
+                                     PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_ON_HORSE))) {
             CollisionCheck_SetOC(play, &play->colChkCtx, &player->cylinder.base);
         }
 

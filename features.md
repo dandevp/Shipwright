@@ -60,7 +60,9 @@ enemies between teammates, so they can play through the same areas together.
 - On the authority, enemies go after the most dangerous player in the room: whoever has the most threat. Damage dealt
   adds to a player's threat, and threat fades away over time (it halves every 8 seconds), so what counts is who hurt
   them lately. While nobody has any threat, they go after the nearest player, and switch once another one is clearly
-  closer. Their hits on a teammate hurt that teammate.
+  closer. Their hits on a teammate hurt that teammate, and so does a Skulltula spinning into the teammate it goes after.
+  - Teammates are solid to enemies: in the authority's game, its enemies bump into them and are pushed away like by
+    your own Link. Only enemies, teammates still pass through you and everything else (without PvP).
   - The first hit draws an enemy's attention right away. After that it only switches to another player once they have
     clearly more threat than its target (20% more), and once it went after its target for at least 3 seconds (5 for
     bosses).
@@ -256,11 +258,12 @@ enemies between teammates, so they can play through the same areas together.
   - the Moblin's shield, which doesn't block from the front for teammates
 - Enemies that act on the player they target directly (grab, freeze, damage outside of a normal hit) only go after the
   authority's own player:
-  Floormaster, Wallmaster, ReDead, Gibdo, Like-Like, Moblin, Skulltula, Gerudo fighter, Dead Hand's hands.
+  Floormaster, Wallmaster, ReDead, Gibdo, Like-Like, Moblin, Gerudo fighter, Dead Hand's hands.
 - Threat is counted by the authority. It starts over when a room is entered again, and a player taking over the room
   may miss up to a second of it.
 - An enemy touching a teammate's dummy player in your game doesn't count as a hit, and the enemy doesn't react to it
-  either (like Ganon knocking back whoever his sword hit).
+  either (like Ganon knocking back whoever his sword hit). Touching counts only for the teammate the enemy goes after
+  (a Skulltula's spin), and hurts them with the same small knockback as other hits from enemies run by a teammate.
 - Hits from enemies run by a teammate always knock you back the same small way (plus burning, freezing or shocking),
   not with that enemy's exact hit reaction.
 - A hit on a puppet counts if the authority's enemy can be hit within a few frames of it arriving (two players hitting

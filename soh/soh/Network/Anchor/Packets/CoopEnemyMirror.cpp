@@ -5,6 +5,7 @@
 #include <cstring>
 #include <string>
 #include <set>
+#include <unordered_map>
 #include <unordered_set>
 #include <nlohmann/json.hpp>
 
@@ -1174,9 +1175,9 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
     { ACTOR_EN_SB, true, offsetof(EnSb, skelAnime), { offsetof(EnSb, collider) } },
     // Stalchild (only the ones placed in a room, not the ones that dig up at night)
     { ACTOR_EN_SKB, true, offsetof(EnSkb, skelAnime), { offsetof(EnSkb, collider) } },
-    // Skulltula (its spin attack damages the player it targets directly)
+    // Skulltula. Its spin attack damages the player it touches directly (see WithPlayer and ApplyCoopTouchingTarget).
     { ACTOR_EN_ST,
-      false,
+      true,
       offsetof(EnSt, skelAnime),
       { offsetof(EnSt, colCylinder), offsetof(EnSt, colCylinder) + sizeof(ColliderCylinder),
         offsetof(EnSt, colCylinder) + 2 * sizeof(ColliderCylinder) } },
@@ -2389,21 +2390,83 @@ static s32 MissGrabbingDummy(PlayState* play, Player* player) {
     return false;
 }
 
-// Runs func with a teammate's dummy player standing in for our player
-template <typename F> static void WithPlayer(Player* standIn, F func) {
+// Damage the actor does to the stand-in while it updates, which goes to the teammate (see WithPlayer)
+static s32 sStandInDamage;
+
+static s32 DamageStandIn(PlayState* play, s32 damage) {
+    sStandInDamage += damage;
+    return true;
+}
+
+// Runs func with a teammate's dummy player standing in for our player, while actor updates. What it does to the player
+// directly (like a Skulltula's spin, play->damagePlayer) hurts the teammate rather than our player.
+template <typename F> static void WithPlayer(Actor* actor, Player* standIn, F func) {
     // GET_PLAYER is the head of the player list. Put it back right away, nothing else may see the dummy there.
     ActorListEntry* playerList = &gPlayState->actorCtx.actorLists[ACTORCAT_PLAYER];
     Actor* player = playerList->head;
     s32 (*grabPlayer)(PlayState*, Player*) = gPlayState->grabPlayer;
+    s32 (*damagePlayer)(PlayState*, s32) = gPlayState->damagePlayer;
     playerList->head = &standIn->actor;
     gPlayState->grabPlayer = MissGrabbingDummy;
+    gPlayState->damagePlayer = DamageStandIn;
+    sStandInDamage = 0;
     func();
     playerList->head = player;
     gPlayState->grabPlayer = grabPlayer;
+    gPlayState->damagePlayer = damagePlayer;
+
+    // Not for bosses, the teammate's own boss puppet hurts them in their game already
+    if (sStandInDamage < 0 && !IsCoopBoss(actor)) {
+        ColliderInfo attackInfo = {};
+        attackInfo.toucher.damage = (u8)std::min(-sStandInDamage, 0xFF);
+        Anchor::Instance->SendPacket_CoopEnemyAttack(Anchor::Instance->GetDummyPlayerClientId(&standIn->actor), actor,
+                                                     &attackInfo);
+    }
 }
 
 static void UpdateWithPlayer(Actor* actor, Player* target) {
-    WithPlayer(target, [&]() { actor->update(actor, gPlayState); });
+    WithPlayer(actor, target, [&]() { actor->update(actor, gPlayState); });
+}
+
+// The colliders a mirrored enemy registered for touching others (OC), by enemy, from the end of the last frame. Their
+// results come in at the start of the next one, before the enemy updates.
+struct CoopOcColliders {
+    s16 actorId;
+    std::vector<Collider*> colliders;
+};
+static std::unordered_map<Actor*, CoopOcColliders> sCoopOcColliders;
+
+void Anchor::RecordCoopOcColliders() {
+    sCoopOcColliders.clear();
+    if (!IsCoopSyncActive()) {
+        return;
+    }
+    for (s32 i = 0; i < gPlayState->colChkCtx.colOCCount; i++) {
+        Collider* collider = gPlayState->colChkCtx.colOC[i];
+        if (collider != nullptr && collider->actor != nullptr && collider->actor->category == ACTORCAT_ENEMY &&
+            IsMirroredType(collider->actor)) {
+            CoopOcColliders& entry = sCoopOcColliders[collider->actor];
+            entry.actorId = collider->actor->id;
+            entry.colliders.push_back(collider);
+        }
+    }
+}
+
+// Teammates are solid to enemies (see DummyPlayer.cpp), but only our own player counts as the player touching them
+// (OC2_HIT_PLAYER), like what a Skulltula spins into. While an enemy goes after a teammate, it's the teammate's touch
+// that counts instead.
+static void ApplyCoopTouchingTarget(Actor* actor, Player* target) {
+    auto it = sCoopOcColliders.find(actor);
+    if (it == sCoopOcColliders.end() || it->second.actorId != actor->id) {
+        return;
+    }
+    for (Collider* collider : it->second.colliders) {
+        if ((collider->ocFlags1 & OC1_HIT) && collider->oc == &target->actor) {
+            collider->ocFlags2 |= OC2_HIT_PLAYER;
+        } else {
+            collider->ocFlags2 &= ~OC2_HIT_PLAYER;
+        }
+    }
 }
 
 // Bosses only go after a teammate in their action (where they aim and decide what to do). What else their update does
@@ -2466,7 +2529,7 @@ static void RunTargetedAction(Actor* actor, PlayState* play) {
     CoopActionFunc* actionFunc = (CoopActionFunc*)((uintptr_t)actor + sTargetedActionOffset);
     *actionFunc = sTargetedAction;
 
-    WithPlayer(sTarget, [&]() { sTargetedAction(actor, play); });
+    WithPlayer(actor, sTarget, [&]() { sTargetedAction(actor, play); });
 }
 
 static const CoopBossAction* FindCoopBossAction(Actor* actor) {
@@ -2494,6 +2557,7 @@ static void UpdateWithTarget(Actor* actor, Player* target) {
 
     const CoopBossAction* bossAction = FindCoopBossAction(actor);
     if (bossAction == nullptr) {
+        ApplyCoopTouchingTarget(actor, target);
         UpdateWithPlayer(actor, target);
         return;
     }

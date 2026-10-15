@@ -118,6 +118,7 @@ void Anchor::RegisterHooks() {
         FlushCoopPendingDrops();
         FlushCoopPendingProjectiles();
         SendCoopEnemySnapshots();
+        RecordCoopOcColliders();
         SendCoopModelChunks();
     });
 
