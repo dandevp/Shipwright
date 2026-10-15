@@ -87,5 +87,9 @@ void Anchor::HandlePacket_SetFlag(nlohmann::json payload) {
         effect->parameters[1] = flagType;
         effect->parameters[2] = flag;
         effect->Apply();
+
+        if (flagType == FLAG_SCENE_SWITCH && gPlayState != nullptr && sceneNum == gPlayState->sceneNum) {
+            UnlockCoopDoors();
+        }
     }
 }

@@ -6,7 +6,12 @@
 
 extern "C" {
 #include "functions.h"
+#include "src/overlays/actors/ovl_Door_Shutter/z_door_shutter.h"
+#include "src/overlays/actors/ovl_En_Door/z_en_door.h"
 extern PlayState* gPlayState;
+void EnDoor_Idle(EnDoor* enDoor, PlayState* play);
+void DoorShutter_SetupType(DoorShutter* doorShutter, PlayState* play);
+void DoorShutter_Idle(DoorShutter* doorShutter, PlayState* play);
 }
 
 /**
@@ -40,6 +45,33 @@ static void SetLiveFlagBit(u32* low, u32* high, s16 flag, bool set) {
         *field |= bit;
     } else {
         *field &= ~bit;
+    }
+}
+
+// Locked doors only check whether they're unlocked when they spawn, so one a teammate unlocked would stay locked for us
+// until the room is loaded again. Unlocks the ones whose switch flag is set now, unless they're already opening.
+void Anchor::UnlockCoopDoors() {
+    for (Actor* actor = gPlayState->actorCtx.actorLists[ACTORCAT_DOOR].head; actor != NULL; actor = actor->next) {
+        if (actor->update == NULL || !Flags_GetSwitch(gPlayState, actor->params & 0x3F)) {
+            continue;
+        }
+
+        if (actor->id == ACTOR_EN_DOOR) {
+            EnDoor* door = (EnDoor*)actor;
+            if (door->lockTimer != 0 && door->actionFunc == EnDoor_Idle && !door->playerIsOpening) {
+                door->lockTimer = 0;
+                Audio_PlayActorSound2(actor, NA_SE_EV_CHAIN_KEY_UNLOCK);
+            }
+        } else if (actor->id == ACTOR_DOOR_SHUTTER) {
+            DoorShutter* door = (DoorShutter*)actor;
+            bool isClosed = door->actionFunc == DoorShutter_SetupType ||
+                            (door->actionFunc == DoorShutter_Idle && door->unk_164 == 0);
+            if (door->unlockTimer != 0 && isClosed) {
+                door->unlockTimer = 0;
+                Audio_PlayActorSound2(actor, door->doorType == SHUTTER_BOSS ? NA_SE_EV_CHAIN_KEY_UNLOCK_B
+                                                                            : NA_SE_EV_CHAIN_KEY_UNLOCK);
+            }
+        }
     }
 }
 
@@ -117,6 +149,9 @@ void Anchor::HandlePacket_CoopSceneFlag(nlohmann::json payload) {
     switch (coopFlagType) {
         case COOP_FLAG_SWITCH:
             SetLiveFlagBit(&flags->swch, &flags->tempSwch, flag, set);
+            if (set) {
+                UnlockCoopDoors();
+            }
             break;
         case COOP_FLAG_CLEAR:
             if (flag < 0x20) {
@@ -220,4 +255,5 @@ void Anchor::HandlePacket_CoopSceneSync(nlohmann::json payload) {
     if (sameRoom && payload.contains("enemyHealth")) {
         ApplyCoopEnemyHealth(payload["enemyHealth"]);
     }
+    UnlockCoopDoors();
 }

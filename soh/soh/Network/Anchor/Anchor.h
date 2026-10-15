@@ -254,6 +254,7 @@ class Anchor : public Network {
     nlohmann::json PrepCoopLitTorches(s8 roomNum);
     void ApplyCoopLitTorches(nlohmann::json& torches);
     void ApplyCoopTurnedStatues(nlohmann::json& statues);
+    void UnlockCoopDoors();
     bool UpdateCoopPuppet(Actor* actor);
     void CorrectCoopDrivenPuppet(Actor* actor);
     void UpdateCoopBossAim(Actor* actor);

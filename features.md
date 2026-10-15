@@ -27,6 +27,8 @@ enemies between teammates, so they can play through the same areas together.
 
 - Switch, clear and temporary collectible flags, live for teammates in the same scene. Room scoped flags (switch flags
   0x38-0x3F, temp clear flags) are shared with teammates in the same room only.
+- Locked doors (small key and boss key doors) a teammate unlocks are unlocked for you right away, with the sound of the
+  lock coming off, also with only "Sync Items and Flags" on. You don't use up a key of your own for them.
 - Boss fights in progress: a teammate entering a boss room after the fight started skips the intro.
 - Entering a scene or room catches up with a teammate already there:
   - flags
@@ -279,7 +281,8 @@ enemies between teammates, so they can play through the same areas together.
 ### Puzzles and objects
 
 - Only torches, push blocks and cobra mirror statues are shared live. Other puzzle objects only share the switch and
-  clear flags they set, so ones that only check those when they spawn may not update until the room is reloaded.
+  clear flags they set, so ones that only check those when they spawn may not update until the room is reloaded
+  (locked doors excepted, see above).
 - Other moving platforms and traps move independently for each player.
 - These flags are never shared (kept from before Co-op Sync):
   - the Water Temple water level
