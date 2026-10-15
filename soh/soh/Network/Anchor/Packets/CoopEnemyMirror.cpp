@@ -13,6 +13,7 @@
 #include "soh/ObjectExtension/ObjectExtension.h"
 #include "soh/ObjectExtension/ActorListIndex.h"
 #include "soh/ResourceManagerHelpers.h"
+#include "soh/ActorDB.h"
 #include "soh/Enhancements/game-interactor/GameInteractor_Hooks.h"
 #include "soh/Enhancements/randomizer/hook_handlers.h"
 
@@ -1926,24 +1927,67 @@ void Anchor::HandlePacket_CoopEnemyHit(nlohmann::json payload) {
     coopPendingHits.push_back({ payload, 0 });
 }
 
+// Which of the enemy's hurt colliders can be hit right now, e.g. "0 2" (see LogDroppedCoopHit)
+static std::string GetActiveHurtColliders(Actor* actor, const CoopEnemyAdapter* adapter) {
+    std::string active;
+    for (size_t i = 0; i < adapter->hurtColliderOffsets.size(); i++) {
+        Collider* collider = GetHurtCollider(actor, adapter, i);
+        for (s32 j = 0; j < gPlayState->colChkCtx.colACCount; j++) {
+            if (gPlayState->colChkCtx.colAC[j] == collider) {
+                active += (active.empty() ? "" : " ") + std::to_string(i);
+                break;
+            }
+        }
+    }
+    return active.empty() ? "none" : active;
+}
+
+static void LogDroppedCoopHit(nlohmann::json& payload, const char* reason) {
+    Actor* actor = FindCoopActor(payload.at("actor").get<CoopActorIdentity>());
+    const CoopEnemyAdapter* adapter = actor != nullptr ? FindCoopEnemyAdapter(actor) : nullptr;
+    if (adapter == nullptr) {
+        return;
+    }
+
+    bool isUpdating = actor->flags & (ACTOR_FLAG_UPDATE_CULLING_DISABLED | ACTOR_FLAG_INSIDE_CULLING_VOLUME);
+    SPDLOG_INFO("[Anchor] Co-op: dropped a hit of client {} on {} (collider {}, dmgFlags 0x{:08X}): {}. Active "
+                "colliders: {}, updating: {}, health: {}",
+                payload.at("clientId").get<uint32_t>(), ActorDB::Instance->RetrieveEntry(actor->id).name,
+                payload.at("collider").get<size_t>(), payload.at("dmgFlags").get<u32>(),
+                reason != nullptr ? reason : "unknown", GetActiveHurtColliders(actor, adapter), isUpdating,
+                GetCoopHealth(actor));
+}
+
 // Hits on teammates' puppets are applied at the end of the frame (after the incoming packets), one per collider and
 // frame since a collider only holds one hit. A hit that can't land yet waits a few frames rather than being lost, like
 // when two players hit the same enemy at once, or it arrives just as the enemy turns hittable again.
+// Hits that are dropped are logged, to tell why teammates' hits don't land.
 void Anchor::ApplyCoopPendingHits() {
     if (!IsCoopRoomAuthority()) {
+        if (!coopPendingHits.empty()) {
+            SPDLOG_INFO("[Anchor] Co-op: dropped {} teammate hit(s), we're not the room authority anymore",
+                        coopPendingHits.size());
+        }
         coopPendingHits.clear();
         return;
     }
 
     std::erase_if(coopPendingHits, [&](CoopPendingHit& hit) {
-        return ApplyCoopEnemyHit(hit.payload) || ++hit.frames > HIT_RETRY_FRAMES;
+        if (ApplyCoopEnemyHit(hit.payload, &hit.dropReason)) {
+            return true;
+        }
+        if (++hit.frames <= HIT_RETRY_FRAMES) {
+            return false;
+        }
+        LogDroppedCoopHit(hit.payload, hit.dropReason);
+        return true;
     });
 }
 
 // Applies a hit on a teammate's puppet to the real enemy, the same way CollisionCheck_SetATvsAC does for a real hit.
 // This runs at the end of the frame, after the enemy registered its colliders and before the next collision check,
 // which then computes the damage from the enemy's own damage table. Returns false if it can't be hit right now.
-bool Anchor::ApplyCoopEnemyHit(nlohmann::json& payload) {
+bool Anchor::ApplyCoopEnemyHit(nlohmann::json& payload, const char** dropReason) {
     Actor* actor = FindCoopActor(payload.at("actor").get<CoopActorIdentity>());
     const CoopEnemyAdapter* adapter = actor != nullptr ? FindCoopEnemyAdapter(actor) : nullptr;
     size_t colliderIndex = payload.at("collider").get<size_t>();
@@ -1958,7 +2002,12 @@ bool Anchor::ApplyCoopEnemyHit(nlohmann::json& payload) {
     for (s32 i = 0; i < gPlayState->colChkCtx.colACCount; i++) {
         isHittable |= gPlayState->colChkCtx.colAC[i] == collider;
     }
-    if (!isHittable || (collider->acFlags & AC_HIT)) {
+    if (!isHittable) {
+        *dropReason = "the collider it hit can't be hit in our game";
+        return false;
+    }
+    if (collider->acFlags & AC_HIT) {
+        *dropReason = "the collider was already hit";
         return false;
     }
 

@@ -254,6 +254,9 @@ enemies between teammates, so they can play through the same areas together.
   not with that enemy's exact hit reaction.
 - A hit on a puppet counts if the authority's enemy can be hit within a few frames of it arriving (two players hitting
   at once both count). Otherwise, like while it's still reeling from the previous hit, it's lost.
+  The authority's game logs every hit it loses (in `logs/Ship of Harkinian.log`, search for "dropped a hit"), with
+  the enemy, the collider that was hit, the colliders that could be hit instead and whether the enemy was updating, to
+  tell why teammates' hits don't land.
 - A weapon that keeps touching a puppet counts as one hit until it stops touching it for a couple of frames.
 
 ### Bosses

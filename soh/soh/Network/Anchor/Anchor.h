@@ -189,7 +189,8 @@ class Anchor : public Network {
     uint32_t coopNextShotId = 0;
     struct CoopPendingHit {
         nlohmann::json payload;
-        u8 frames; // How long it has been waiting for its enemy to be hittable
+        u8 frames;                        // How long it has been waiting for its enemy to be hittable
+        const char* dropReason = nullptr; // Why it couldn't land the last time it was tried, logged if it's dropped
     };
     std::vector<CoopPendingHit> coopPendingHits; // Teammates' hits on the puppets of enemies we run
     struct CoopTrackedCarry {
@@ -261,7 +262,7 @@ class Anchor : public Network {
     bool UpdateCoopShot(Actor* actor);
     void SendCoopShotState(Actor* actor, bool isRemoved = false);
     void ApplyCoopPendingHits();
-    bool ApplyCoopEnemyHit(nlohmann::json& payload);
+    bool ApplyCoopEnemyHit(nlohmann::json& payload, const char** dropReason);
     bool UpdateCoopEnemyWithTarget(Actor* actor);
     void OnCoopActorSpawned(Actor* actor);
     void FlushCoopPendingProjectiles();
