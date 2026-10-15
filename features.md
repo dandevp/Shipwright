@@ -52,6 +52,8 @@ enemies between teammates, so they can play through the same areas together.
   - The authority is whoever was in the room first. A player entering a room where a fight is going on joins it,
     instead of the fight starting over.
   - If the authority leaves the room or pauses for more than a second, another player in the room takes over.
+  - While teammates share a room, its enemies keep moving when they're off your screen (some, like Octoroks and Deku
+    Babas, stop then in vanilla), so the authority's enemy can fight and be hit by a teammate the authority doesn't see.
   - A player coming back from a pause doesn't take over again, their enemies stood still meanwhile.
 - Hitting a puppet hits the authority's enemy, with its own damage table, reaction and death. That goes for what you
   shoot, throw or set off too: arrows, slingshot seeds, bombs, and a Deku Nut's flash stunning it.

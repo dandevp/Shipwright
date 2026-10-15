@@ -262,6 +262,7 @@ class Anchor : public Network {
     bool UpdateCoopShot(Actor* actor);
     void SendCoopShotState(Actor* actor, bool isRemoved = false);
     void ApplyCoopPendingHits();
+    void UpdateCoopEnemyCulling();
     bool ApplyCoopEnemyHit(nlohmann::json& payload, const char** dropReason);
     bool UpdateCoopEnemyWithTarget(Actor* actor);
     void OnCoopActorSpawned(Actor* actor);

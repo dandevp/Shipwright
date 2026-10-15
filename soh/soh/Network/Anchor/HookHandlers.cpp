@@ -112,6 +112,7 @@ void Anchor::RegisterHooks() {
         coopUpdatingActor = nullptr;
         ProcessIncomingPacketQueue();
         ApplyCoopPendingHits();
+        UpdateCoopEnemyCulling();
         RefreshCoopNpcs();
         UpdateCoopCarriedCopies();
         FlushCoopPendingDrops();

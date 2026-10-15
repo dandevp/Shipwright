@@ -1691,6 +1691,31 @@ static bool IsCoopMirroredObject(Actor* actor) {
     return false;
 }
 
+// Enemies without ACTOR_FLAG_UPDATE_CULLING_DISABLED (Octoroks, Deku Babas, ...) stop updating while they're off our
+// screen. Mirrored ones keep updating while teammates share the room: the authority's enemy may be fighting a teammate
+// out of the authority's sight, and an enemy can only be hit while it updates (it registers its colliders then).
+struct CoopForcedUpdate {};
+static ObjectExtension::Register<CoopForcedUpdate> CoopForcedUpdateRegister;
+
+void Anchor::UpdateCoopEnemyCulling() {
+    bool keepUpdating = IsCoopSyncActive() && !GetCoopPeers(true).empty();
+    for (Actor* actor = gPlayState->actorCtx.actorLists[ACTORCAT_ENEMY].head; actor != NULL; actor = actor->next) {
+        bool isForced = ObjectExtension::GetInstance().Has<CoopForcedUpdate>(actor);
+        if (keepUpdating && IsMirroredType(actor)) {
+            if (!isForced && !(actor->flags & ACTOR_FLAG_UPDATE_CULLING_DISABLED)) {
+                ObjectExtension::GetInstance().Set<CoopForcedUpdate>(actor, CoopForcedUpdate{});
+                isForced = true;
+            }
+            if (isForced) {
+                actor->flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
+            }
+        } else if (isForced) {
+            actor->flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
+            ObjectExtension::GetInstance().Remove<CoopForcedUpdate>(actor);
+        }
+    }
+}
+
 // The authority is whoever was in the room first: a player entering a room where a fight is going on joins it, rather
 // than everyone's enemies starting over from the newcomer's. Every player says in PLAYER_UPDATE whether they claim to
 // be the authority of their room, and a claim is only made when nobody else in the room has one:
