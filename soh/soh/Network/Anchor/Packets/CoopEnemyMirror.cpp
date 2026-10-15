@@ -3241,8 +3241,8 @@ static void FollowGanondorfBigMagicBall(Actor* actor) {
     ball->unk_1A2++;
     ball->unk_1A6 = (ball->unk_1A6 + 1) % 15;
     ball->unk_2EC[ball->unk_1A6] = actor->world.pos;
-    ball->unk_3C4[ball->unk_1A6].x = BINANG_TO_RAD(actor->world.rot.x);
-    ball->unk_3C4[ball->unk_1A6].y = BINANG_TO_RAD(actor->world.rot.y);
+    ball->unk_3C4[ball->unk_1A6].x = static_cast<f32>(BINANG_TO_RAD(actor->world.rot.x));
+    ball->unk_3C4[ball->unk_1A6].y = static_cast<f32>(BINANG_TO_RAD(actor->world.rot.y));
 }
 
 // One that flew off out of the room breaks the platform it ended up at
