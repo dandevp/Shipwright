@@ -300,7 +300,7 @@ FetchContent_Declare(
     GIT_TAG v1.0.6
 )
 FetchContent_MakeAvailable(valijson)
-target_include_directories(${PROJECT_NAME} PRIVATE ${valijson_SOURCE_DIR}/include)
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${valijson_SOURCE_DIR}/include)
 
 FetchContent_Declare(
         asio
@@ -308,7 +308,7 @@ FetchContent_Declare(
         GIT_TAG asio-1-30-2
 )
 FetchContent_MakeAvailable(asio)
-target_include_directories(${PROJECT_NAME} PRIVATE ${asio_SOURCE_DIR}/asio/include)
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${asio_SOURCE_DIR}/asio/include)
 
 # websocketpp has been temporarily removed from vcpkg, see
 # https://github.com/microsoft/vcpkg/pull/42678#issuecomment-2914451436
@@ -318,7 +318,7 @@ FetchContent_Declare(
     GIT_TAG bce258674b2d544f981da4bf149244a76e8126c9
 )
 FetchContent_Populate(websocketpp)
-target_include_directories(${PROJECT_NAME} PRIVATE ${websocketpp_SOURCE_DIR})
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${websocketpp_SOURCE_DIR})
 
 FetchContent_Declare(
         wswrap
@@ -326,7 +326,7 @@ FetchContent_Declare(
         GIT_TAG d0505e0ec53a26743f11051949a0dc66bcf44951
 )
 FetchContent_MakeAvailable(wswrap)
-target_include_directories(${PROJECT_NAME} PRIVATE ${wswrap_SOURCE_DIR}/include)
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${wswrap_SOURCE_DIR}/include)
 
 FetchContent_Declare(
         apclientpp
@@ -335,7 +335,7 @@ FetchContent_Declare(
 )
 SET(APCLIENTPP_BUILD_TESTING OFF CACHE BOOL "Don't build apclientpp's tests")
 FetchContent_MakeAvailable(apclientpp)
-target_include_directories(${PROJECT_NAME} PRIVATE ${apclientpp_SOURCE_DIR})
+target_include_directories(${PROJECT_NAME} SYSTEM PRIVATE ${apclientpp_SOURCE_DIR})
 
 # Find/download Dr Libs (For custom audio)
 ################################################################################

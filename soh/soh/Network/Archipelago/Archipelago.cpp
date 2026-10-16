@@ -1629,27 +1629,27 @@ void LoadArchipelagoData() {
     });
 }
 
-void SaveArchipelagoData(SaveContext* saveContext, int sectionID, bool fullSave) {
-    SaveManager::Instance->SaveData("isArchipelago", saveContext->ship.quest.data.archipelago.isArchipelago);
+void SaveArchipelagoData(const SaveContext& saveContext, int sectionID, bool fullSave) {
+    SaveManager::Instance->SaveData("isArchipelago", saveContext.ship.quest.data.archipelago.isArchipelago);
     SaveManager::Instance->SaveData("lastReceivedItemIndex",
-                                    saveContext->ship.quest.data.archipelago.lastReceivedItemIndex);
+                                    saveContext.ship.quest.data.archipelago.lastReceivedItemIndex);
 
-    SaveManager::Instance->SaveData("roomHash", saveContext->ship.quest.data.archipelago.roomHash);
-    SaveManager::Instance->SaveData("slotName", saveContext->ship.quest.data.archipelago.slotName);
-    SaveManager::Instance->SaveData("archiUri", saveContext->ship.quest.data.archipelago.archiUri);
+    SaveManager::Instance->SaveData("roomHash", saveContext.ship.quest.data.archipelago.roomHash);
+    SaveManager::Instance->SaveData("slotName", saveContext.ship.quest.data.archipelago.slotName);
+    SaveManager::Instance->SaveData("archiUri", saveContext.ship.quest.data.archipelago.archiUri);
     SaveManager::Instance->SaveData("roomPass", gSaveContext.ship.quest.data.archipelago.roomPass);
 
     SaveManager::Instance->SaveArray(
-        "locations", ARRAY_COUNT(saveContext->ship.quest.data.archipelago.locations), [&](size_t i) {
+        "locations", ARRAY_COUNT(saveContext.ship.quest.data.archipelago.locations), [&](size_t i) {
             SaveManager::Instance->SaveStruct("", [&]() {
                 SaveManager::Instance->SaveData("itemFlags",
-                                                saveContext->ship.quest.data.archipelago.locations[i].itemFlags);
+                                                saveContext.ship.quest.data.archipelago.locations[i].itemFlags);
                 SaveManager::Instance->SaveData("itemName",
-                                                saveContext->ship.quest.data.archipelago.locations[i].itemName);
+                                                saveContext.ship.quest.data.archipelago.locations[i].itemName);
                 SaveManager::Instance->SaveData("hintName",
-                                                saveContext->ship.quest.data.archipelago.locations[i].hintName);
+                                                saveContext.ship.quest.data.archipelago.locations[i].hintName);
                 SaveManager::Instance->SaveData("playerName",
-                                                saveContext->ship.quest.data.archipelago.locations[i].playerName);
+                                                saveContext.ship.quest.data.archipelago.locations[i].playerName);
             });
         });
 
