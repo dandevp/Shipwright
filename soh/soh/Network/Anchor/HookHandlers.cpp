@@ -115,11 +115,13 @@ void Anchor::RegisterHooks() {
         UpdateCoopPause();
         UpdateCoopWhilePaused();
         ApplyCoopPendingHits();
+        UpdateCoopEnemyCulling();
         RefreshCoopNpcs();
         UpdateCoopCarriedCopies();
         FlushCoopPendingDrops();
         FlushCoopPendingProjectiles();
         SendCoopEnemySnapshots();
+        RecordCoopOcColliders();
         SendCoopModelChunks();
     });
 

@@ -37,6 +37,8 @@ enemies between teammates, so they can play through the same areas together.
 
 - Switch, clear and temporary collectible flags, live for teammates in the same scene. Room scoped flags (switch flags
   0x38-0x3F, temp clear flags) are shared with teammates in the same room only.
+- Locked doors (small key and boss key doors) a teammate unlocks are unlocked for you right away, with the sound of the
+  lock coming off, also with only "Sync Items and Flags" on. You don't use up a key of your own for them.
 - Boss fights in progress: a teammate entering a boss room after the fight started skips the intro.
 - Entering a scene or room catches up with a teammate already there:
   - flags
@@ -71,13 +73,26 @@ enemies between teammates, so they can play through the same areas together.
   - The bosses, Deku Babas, Flare Dancers and Baris go on with the authority's action too. One the authority is in
     that isn't passed on (cutscenes, deaths that spawn things) leaves the taking-over player's own action as it was,
     instead of putting in another one: the merged Twinrova got one of her sisters' that way and crashed the game.
+  - While teammates share a room, its enemies keep moving when they're off your screen (some, like Octoroks and Deku
+    Babas, stop then in vanilla), so the authority's enemy can fight and be hit by a teammate the authority doesn't see.
 - Puppets can be Z-targeted, and pulled in by the hookshot, whenever the authority's enemy can (an Iron Knuckle once
   it wakes up, a Deku Baba while it's out of the ground), and are only seen through the Lens of Truth when it is.
 - Hitting a puppet hits the authority's enemy, with its own damage table, reaction and death. That goes for what you
   shoot, throw or set off too: arrows, slingshot seeds, bombs, and a Deku Nut's flash stunning it.
-- On the authority, enemies go after the most dangerous player in the room: whoever dealt them the most damage. While
-  nobody has hurt them yet, they go after the nearest player, and switch once another one is clearly closer. Their hits
-  on a teammate hurt that teammate.
+- On the authority, enemies go after the most dangerous player in the room: whoever has the most threat. Damage dealt
+  adds to a player's threat, and threat fades away over time (it halves every 8 seconds), so what counts is who hurt
+  them lately. While nobody has any threat, they go after the nearest player, and switch once another one is clearly
+  closer. Their hits on a teammate hurt that teammate, and so does a Skulltula spinning into the teammate it goes after.
+  - Teammates are solid to enemies: in the authority's game, its enemies bump into them and are pushed away like by
+    your own Link. Only enemies, teammates still pass through you and everything else (without PvP).
+  - The first hit draws an enemy's attention right away. After that it only switches to another player once they have
+    clearly more threat than its target (20% more), and once it went after its target for at least 3 seconds (5 for
+    bosses).
+  - Bosses tire of their target: its threat fades twice as fast, so boss fights take turns between the players.
+  - Players who are dead or in a cutscene (like getting the Master Sword back from Ganon) aren't gone after.
+  - The authority sends the threat to the others every second, so whoever takes over the room carries on with it.
+  - These numbers can be tuned under Network > Anchor > Co-op Aggro Tuning. The settings of the player running the
+    room apply.
 - What they shoot is shown to everyone, but only the authority's copy can hurt anyone.
 - Mirrored enemies:
   - Armos, Baby Dodongo, Bari, Beamos, Biri, Bubble, Dead Hand and its hands, Dodongo
@@ -100,8 +115,8 @@ enemies between teammates, so they can play through the same areas together.
   - Unlike enemy puppets, a boss puppet keeps its own effects, sounds and animation, and only follows what the
     authority's boss is doing.
   - It goes after the same player as the authority's boss: it turns, aims and charges at them in everyone's game.
-    Like enemies, it goes after whoever dealt it the most damage (counting all its parts together), or the nearest
-    player while nobody has. A shot sent back at it, a bomb fed to King Dodongo and a beam reflected onto a Twinrova
+    Like enemies, it goes after whoever has the most threat (counting all its parts together), or the nearest player
+    while nobody has any. A shot sent back at it, a bomb fed to King Dodongo and a beam reflected onto a Twinrova
     sister count for the player who did it.
   - What a player does against its attack in their own game is shown in everyone's (a Twinrova sister's beam reflected
     by their Mirror Shield).
@@ -163,9 +178,12 @@ enemies between teammates, so they can play through the same areas together.
   pots, bushes, crates, rocks and Cuccos placed in the room, as well as bombs, Bomb Flower bombs and anything else.
 - A teammate's player model shows the same pose as in their own game, including upper body animations like holding
   something over their head (sent as drawn, with animation blending, one frame behind their position).
+- A teammate holding up their shield holds it in their hand, also without a sword drawn (rather than it staying on
+  their back).
 - A teammate's bomb blows up in your game when it does in theirs. It is only the look and sound: its effects happen in
   their game and reach you through the rest of the sync.
-- Copies of a teammate's bombs don't count towards your own bomb limit.
+- Copies of a teammate's bombs don't count towards your own bomb limit. They have the size of the teammate's bomb, so
+  a bomb taken out of the bag grows in their hand and swells before it goes off like the real one.
 - Teammates see what you shoot or throw while it flies: arrows (including magic arrows, without their fire, ice or light
   effect around them), slingshot seeds, Deku Nuts and the boomerang. Their copies follow yours each frame and can't
   hit anything; what yours hits happens in your game and reaches them through the rest of the sync. Where a seed or
@@ -288,16 +306,20 @@ enemies between teammates, so they can play through the same areas together.
   - the Moblin's shield, which doesn't block from the front for teammates
 - Enemies that act on the player they target directly (grab, freeze, damage outside of a normal hit) only go after the
   authority's own player:
-  Floormaster, Wallmaster, ReDead, Gibdo, Like-Like, Moblin, Skulltula, Gerudo fighter, Dead Hand's hands, Dark Link
-  (who copies that player's moves).
-- Who dealt how much damage is counted by the authority. It starts over when another player takes over the room, and
-  when a room is entered again.
+  Floormaster, Wallmaster, ReDead, Gibdo, Like-Like, Moblin, Gerudo fighter, Dead Hand's hands, Dark Link (who
+  copies that player's moves).
+- Threat is counted by the authority. It starts over when a room is entered again, and a player taking over the room
+  may miss up to a second of it.
 - An enemy touching a teammate's dummy player in your game doesn't count as a hit, and the enemy doesn't react to it
-  either (like Ganon knocking back whoever his sword hit).
+  either (like Ganon knocking back whoever his sword hit). Touching counts only for the teammate the enemy goes after
+  (a Skulltula's spin), and hurts them with the same small knockback as other hits from enemies run by a teammate.
 - Hits from enemies run by a teammate always knock you back the same small way (plus burning, freezing or shocking),
   not with that enemy's exact hit reaction.
 - A hit on a puppet counts if the authority's enemy can be hit within a few frames of it arriving (two players hitting
   at once both count). Otherwise, like while it's still reeling from the previous hit, it's lost.
+  The authority's game logs every hit it loses (in `logs/Ship of Harkinian.log`, search for "dropped a hit"), with
+  the enemy, the collider that was hit, the colliders that could be hit instead and whether the enemy was updating, to
+  tell why teammates' hits don't land.
 - A weapon that keeps touching a puppet counts as one hit until it stops touching it for a couple of frames.
 
 ### Bosses
@@ -332,8 +354,9 @@ enemies between teammates, so they can play through the same areas together.
 
 ### Puzzles and objects
 
-- Only torches, signs, toggle floor switches, push blocks and cobra mirror statues are shared live. Other puzzle objects only share the switch and
-  clear flags they set, so ones that only check those when they spawn may not update until the room is reloaded.
+- Only torches, signs, toggle floor switches, push blocks and cobra mirror statues are shared live. Other puzzle
+  objects only share the switch and clear flags they set, so ones that only check those when they spawn may not
+  update until the room is reloaded (locked doors excepted, see above).
 - Other moving platforms and traps move independently for each player.
 - These flags are never shared (kept from before Co-op Sync):
   - the Water Temple water level
@@ -392,3 +415,17 @@ None of these have been tested in the game yet:
   played by hand
 - [ ] A breakable that isn't loaded yet when a teammate on another seed breaks theirs stays whole for you
 - [ ] Matching mods doesn't compare their load order, and doesn't look into old `.otr` mods
+
+# Outdated ROM Archive Detection
+
+`oot.o2r` and `oot-mq.o2r` are stamped with a hash of the asset specs (`soh/assets/yml`) they were extracted from (an
+`assetVersion` file in the archive). At startup, an archive whose stamp doesn't match this build's specs is removed and
+the "Outdated ROM Archives" popup leads to extracting it again, as for a different major version. This catches asset
+renames between builds of the same version, which used to crash once the renamed asset was used (e.g. Business Scrubs
+in the Lost Woods after their animations were renamed).
+
+- The hash (`SOH_ASSET_VERSION`) is generated at build time by `CMake/GenerateAssetVersion.cmake` and recomputed only
+  when a spec changes. Both the game's extractor and the `ExtractAssets` target stamp archives with it.
+- Archives from before this change have no stamp, so they're extracted again once.
+- A missing animation or skeleton logs an error naming the asset and pointing at outdated archives, once per asset,
+  before the crash it leads to.

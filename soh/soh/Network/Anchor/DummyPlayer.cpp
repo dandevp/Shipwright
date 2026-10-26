@@ -132,6 +132,7 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
     player->currentShield = client.currentShield;
     player->heldItemId = client.buttonItem0;
     player->currentTunic = client.currentTunic;
+    bool wasShielding = player->stateFlags1 & PLAYER_STATE1_SHIELDING;
     player->stateFlags1 = client.stateFlags1;
     player->stateFlags2 = client.stateFlags2;
     player->itemAction = client.itemAction;
@@ -164,13 +165,19 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
         player->actor.world.pos.y += diff.y * player->actor.scale.y;
     }
 
-    if (player->modelGroup != client.modelGroup) {
+    // Raising the shield without a sword in hand moves it from the back to the hand without changing the model group
+    // (Player_SetModelsForHoldingShield), and lowering it puts the model group's models back
+    bool isShielding = player->stateFlags1 & PLAYER_STATE1_SHIELDING;
+    if (player->modelGroup != client.modelGroup || isShielding || wasShielding) {
         // Hack to account for usage of gSaveContext
         s32 originalAge = gSaveContext.linkAge;
         gSaveContext.linkAge = client.linkAge;
         u8 originalButtonItem0 = gSaveContext.equips.buttonItems[0];
         gSaveContext.equips.buttonItems[0] = client.buttonItem0;
         Player_SetModelGroup(player, client.modelGroup);
+        if (isShielding) {
+            Player_SetModelsForHoldingShield(player);
+        }
         gSaveContext.linkAge = originalAge;
         gSaveContext.equips.buttonItems[0] = originalButtonItem0;
     }
@@ -226,9 +233,13 @@ void DummyPlayer_Update(Actor* actor, PlayState* play) {
     Collider_UpdateCylinder(&player->actor, &player->cylinder);
 
     if (!(player->stateFlags2 & PLAYER_STATE2_FROZEN)) {
-        // Without PvP other players aren't solid, as before
-        if (pvpEnabled && !(player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_HANGING_OFF_LEDGE |
-                                                   PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_ON_HORSE))) {
+        // Without PvP other players aren't solid to us, as before. In co-op they're solid to enemies, which can touch
+        // them (see ApplyCoopTouchingTarget in CoopEnemyMirror.cpp), but they never count as our player touching
+        // something (that's OC2_TYPE_PLAYER, like a Gold Skulltula token being collected).
+        player->cylinder.base.ocFlags1 = OC1_ON | (pvpEnabled ? OC1_TYPE_ALL : OC1_TYPE_1);
+        if ((pvpEnabled || coopEnemyHits) &&
+            !(player->stateFlags1 & (PLAYER_STATE1_DEAD | PLAYER_STATE1_HANGING_OFF_LEDGE |
+                                     PLAYER_STATE1_CLIMBING_LEDGE | PLAYER_STATE1_ON_HORSE))) {
             CollisionCheck_SetOC(play, &play->colChkCtx, &player->cylinder.base);
         }
 

@@ -7,6 +7,8 @@
 
 #include "spdlog/spdlog.h"
 
+#include "SohAssetVersion.h"
+
 #include "Companion.h"
 #include "factories/BaseFactory.h"
 
@@ -41,6 +43,8 @@ std::string Extract(std::vector<uint8_t> rom, const std::string& srcDir, const s
         auto companion = std::make_unique<Companion>(std::move(rom), ArchiveType::O2R, false, srcDir, destDir);
         Companion::Instance = companion.get();
         companion->SetVersion(portVersion);
+        const std::string assetVersion = SOH_ASSET_VERSION;
+        companion->RegisterArchiveFile(kAssetVersionFile, std::vector<char>(assetVersion.begin(), assetVersion.end()));
         companion->SetPhaseCallback([progress](int) {
             if (progress != nullptr) {
                 (*progress)++;
