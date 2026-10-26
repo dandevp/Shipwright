@@ -38,6 +38,7 @@ extern "C" {
 #include "src/overlays/actors/ovl_En_Am/z_en_am.h"
 #include "src/overlays/actors/ovl_En_Bb/z_en_bb.h"
 #include "src/overlays/actors/ovl_En_Bili/z_en_bili.h"
+#include "src/overlays/actors/ovl_En_Boom/z_en_boom.h"
 #include "src/overlays/actors/ovl_En_Bw/z_en_bw.h"
 #include "src/overlays/actors/ovl_En_Crow/z_en_crow.h"
 #include "src/overlays/actors/ovl_En_Dekubaba/z_en_dekubaba.h"
@@ -409,6 +410,10 @@ struct CoopEnemyAdapter {
     // For enemies animated without a skeleton: moves the puppet's body every frame, towards the targets its stateFields
     // bring from the authority, so it moves as smoothly as the real one instead of only with every snapshot
     void (*animatePuppet)(Actor* actor) = nullptr;
+    // For enemies armored on the side that faces the player (a Skulltula's legs): the hurt collider it would register
+    // in place of the one at index with the player at playerPos, put where it goes. It faces whoever it goes after,
+    // but which side an attacker hits is up to where they are, so this is worked out per attacker.
+    Collider* (*getFacingHurtCollider)(Actor* actor, size_t index, Vec3f playerPos) = nullptr;
 };
 
 #define STATE_RANGE(type, first, end)                                      \
@@ -1192,6 +1197,18 @@ static void DefeatBongo(Actor* actor) {
     }
 }
 
+// A Skulltula's legs are armored on the side facing the player, and soft behind (see EnSt_SetLegsCylinderAC)
+static Collider* GetSkulltulaFacingCollider(Actor* actor, size_t index, Vec3f playerPos) {
+    EnSt* skulltula = (EnSt*)actor;
+    if (index != 1 && index != 2) {
+        return &skulltula->colCylinder[index].base;
+    }
+    s16 angleTowardsPlayer = ABS((s16)(Math_Vec3f_Yaw(&actor->world.pos, &playerPos) - actor->shape.rot.y));
+    ColliderCylinder* legs = &skulltula->colCylinder[angleTowardsPlayer < 0x3FFC ? 2 : 1];
+    Collider_UpdateCylinder(actor, legs);
+    return &legs->base;
+}
+
 static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
     // Armos (not the statues you push around)
     { ACTOR_EN_AM,
@@ -1279,11 +1296,13 @@ static const std::vector<CoopEnemyAdapter> sCoopEnemyAdapters = {
     // Stalchild (only the ones placed in a room, not the ones that dig up at night)
     { ACTOR_EN_SKB, true, offsetof(EnSkb, skelAnime), { offsetof(EnSkb, collider) } },
     // Skulltula. Its spin attack damages the player it touches directly (see WithPlayer and ApplyCoopTouchingTarget).
-    { ACTOR_EN_ST,
-      true,
-      offsetof(EnSt, skelAnime),
-      { offsetof(EnSt, colCylinder), offsetof(EnSt, colCylinder) + sizeof(ColliderCylinder),
-        offsetof(EnSt, colCylinder) + 2 * sizeof(ColliderCylinder) } },
+    // Its legs are armored on the side facing each attacker, not only the player it goes after.
+    { .actorId = ACTOR_EN_ST,
+      .canTargetTeammates = true,
+      .skelAnimeOffset = offsetof(EnSt, skelAnime),
+      .hurtColliderOffsets = { offsetof(EnSt, colCylinder), offsetof(EnSt, colCylinder) + sizeof(ColliderCylinder),
+                               offsetof(EnSt, colCylinder) + 2 * sizeof(ColliderCylinder) },
+      .getFacingHurtCollider = GetSkulltulaFacingCollider },
     // Skullwalltula (not the Gold Skulltulas, which are the same actor)
     { ACTOR_EN_SW,
       true,
@@ -1654,6 +1673,7 @@ struct CoopPuppet {
     std::vector<std::pair<Actor*, u32>> recentAttackers; // Our weapons touching it, and the last frame they did
     bool hasColliderOffsets = false;
     std::vector<Vec3f> colliderOffsets; // Per hurt collider element, relative to the actor position
+    u32 hurtColliders = UINT32_MAX;     // Which hurt colliders the authority's registered, one bit each
     std::vector<u8> state;              // The adapter's state fields, one after the other
     std::vector<u8> extraState;         // See getExtraState
     u16 phase = 0;
@@ -1742,6 +1762,63 @@ static SkelAnime* GetSkelAnime(Actor* actor, const CoopEnemyAdapter* adapter) {
 
 static Collider* GetHurtCollider(Actor* actor, const CoopEnemyAdapter* adapter, size_t index) {
     return (Collider*)((uintptr_t)actor + adapter->hurtColliderOffsets[index]);
+}
+
+// Where the collider is in this frame's list of colliders that can be hit, or -1 if it can't be hit this frame
+static s32 FindRegisteredAC(Collider* collider) {
+    for (s32 i = 0; i < gPlayState->colChkCtx.colACCount; i++) {
+        if (gPlayState->colChkCtx.colAC[i] == collider) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Puts collider in the place of the one registered at slot, fresh as CollisionCheck_SetAC leaves it
+static void ReplaceRegisteredAC(s32 slot, Collider* collider) {
+    switch (collider->shape) {
+        case COLSHAPE_JNTSPH:
+            Collider_ResetJntSphAC(gPlayState, collider);
+            break;
+        case COLSHAPE_CYLINDER:
+            Collider_ResetCylinderAC(gPlayState, collider);
+            break;
+        case COLSHAPE_TRIS:
+            Collider_ResetTrisAC(gPlayState, collider);
+            break;
+        case COLSHAPE_QUAD:
+            Collider_ResetQuadAC(gPlayState, collider);
+            break;
+    }
+    gPlayState->colChkCtx.colAC[slot] = collider;
+}
+
+// Which of its hurt colliders the enemy registered this frame, one bit each
+static u32 GetRegisteredHurtColliders(Actor* actor, const CoopEnemyAdapter* adapter) {
+    u32 mask = 0;
+    for (size_t i = 0; i < adapter->hurtColliderOffsets.size(); i++) {
+        if (FindRegisteredAC(GetHurtCollider(actor, adapter, i)) >= 0) {
+            mask |= 1u << i;
+        }
+    }
+    return mask;
+}
+
+// The enemy registered the side it's armored on as seen from the player it goes after. For our own player's hits, it's
+// swapped for the side our player is on.
+static void ApplyCoopFacingColliders(Actor* actor, const CoopEnemyAdapter* adapter, Vec3f playerPos) {
+    if (adapter->getFacingHurtCollider == nullptr) {
+        return;
+    }
+    for (size_t i = 0; i < adapter->hurtColliderOffsets.size(); i++) {
+        s32 slot = FindRegisteredAC(GetHurtCollider(actor, adapter, i));
+        if (slot >= 0) {
+            Collider* facing = adapter->getFacingHurtCollider(actor, i, playerPos);
+            if (facing != gPlayState->colChkCtx.colAC[slot] && FindRegisteredAC(facing) < 0) {
+                ReplaceRegisteredAC(slot, facing);
+            }
+        }
+    }
 }
 
 // Animations are referenced by their resource path, which is the same for everyone. Animation_Change keeps the pointer,
@@ -2122,6 +2199,7 @@ void Anchor::SendCoopEnemySnapshots() {
             enemy["scale"] = actor->scale;
             enemy["flags"] = actor->flags & PUPPET_FLAGS;
             enemy["targetMode"] = actor->targetMode;
+            enemy["hurt"] = GetRegisteredHurtColliders(actor, adapter);
             if (adapter->puppetSpawn != COOP_PUPPET_SPAWN_NONE) {
                 enemy["params"] = actor->params;
                 if (actor->parent != nullptr && (IsCoopEnemy(actor->parent) || IsCoopBoss(actor->parent))) {
@@ -2249,6 +2327,24 @@ void Anchor::ApplyCoopPendingHits() {
     });
 }
 
+// What hit the enemy, as the enemy sees it. Some tell weapons apart by their actor rather than their damage flags:
+// only a boomerang stuns Barinade while her jellies are around her. For those, a stand-in of the teammate's weapon
+// hits it (what the enemy then does to the weapon, like sending a boomerang back, changes nothing), for the others
+// the teammate's dummy player does.
+static Actor* GetCoopWeaponStandIn(s16 weaponId, Actor* attacker, Vec3s hitPos) {
+    static EnBoom sBoomerang;
+    if (weaponId != ACTOR_EN_BOOM) {
+        return attacker;
+    }
+    sBoomerang = {};
+    sBoomerang.actor.id = ACTOR_EN_BOOM;
+    sBoomerang.actor.category = ACTORCAT_MISC;
+    sBoomerang.actor.parent = attacker;
+    sBoomerang.actor.world.pos = { (f32)hitPos.x, (f32)hitPos.y, (f32)hitPos.z };
+    sBoomerang.actor.world.rot = attacker->world.rot;
+    return &sBoomerang.actor;
+}
+
 // Applies a hit on a teammate's puppet to the real enemy, the same way CollisionCheck_SetATvsAC does for a real hit.
 // This runs at the end of the frame, after the enemy registered its colliders and before the next collision check,
 // which then computes the damage from the enemy's own damage table. Returns false if it can't be hit right now.
@@ -2260,12 +2356,24 @@ bool Anchor::ApplyCoopEnemyHit(nlohmann::json& payload, const char** dropReason)
         return true; // Gone, nothing to wait for
     }
 
+    uint32_t clientId = payload.at("clientId").get<uint32_t>();
+    Actor* attacker = &GET_PLAYER(gPlayState)->actor;
+    if (clients.contains(clientId) && clients[clientId].player != nullptr) {
+        attacker = &clients[clientId].player->actor;
+    }
+
     // Only if it can be hit right now (e.g. not while it's still reeling from the previous hit), and isn't already
     // being hit this frame
     Collider* collider = GetHurtCollider(actor, adapter, colliderIndex);
-    bool isHittable = false;
-    for (s32 i = 0; i < gPlayState->colChkCtx.colACCount; i++) {
-        isHittable |= gPlayState->colChkCtx.colAC[i] == collider;
+    bool isHittable = FindRegisteredAC(collider) >= 0;
+    // The side it's armored on is up to where the teammate is (see getFacingHurtCollider), which their game worked
+    // out already. Ours registered the side for our player, so it's swapped for theirs.
+    for (size_t i = 0; i < adapter->hurtColliderOffsets.size() && !isHittable && adapter->getFacingHurtCollider; i++) {
+        s32 slot = FindRegisteredAC(GetHurtCollider(actor, adapter, i));
+        if (slot >= 0 && adapter->getFacingHurtCollider(actor, i, attacker->world.pos) == collider) {
+            ReplaceRegisteredAC(slot, collider);
+            isHittable = true;
+        }
     }
     if (!isHittable) {
         *dropReason = "the collider it hit can't be hit in our game";
@@ -2297,12 +2405,6 @@ bool Anchor::ApplyCoopEnemyHit(nlohmann::json& payload, const char** dropReason)
     ColliderInfo* attackInfo = &sAttackInfos[sNextAttackSlot];
     sNextAttackSlot = (sNextAttackSlot + 1) % ARRAY_COUNT(sAttackColliders);
 
-    uint32_t clientId = payload.at("clientId").get<uint32_t>();
-    Actor* attacker = &GET_PLAYER(gPlayState)->actor;
-    if (clients.contains(clientId) && clients[clientId].player != nullptr) {
-        attacker = &clients[clientId].player->actor;
-    }
-
     *attack = {};
     attack->actor = attacker;
     attack->atFlags = AT_ON | AT_TYPE_PLAYER;
@@ -2314,7 +2416,7 @@ bool Anchor::ApplyCoopEnemyHit(nlohmann::json& payload, const char** dropReason)
 
     Vec3s hitPos = payload.at("hitPos").get<Vec3s>();
     collider->acFlags |= AC_HIT;
-    collider->ac = attacker;
+    collider->ac = GetCoopWeaponStandIn(payload.value("weapon", (s16)ACTOR_PLAYER), attacker, hitPos);
     hitInfo->acHit = attack;
     hitInfo->acHitInfo = attackInfo;
     hitInfo->bumperFlags |= BUMP_HIT;
@@ -2371,6 +2473,7 @@ void Anchor::HandlePacket_CoopEnemySnapshot(nlohmann::json payload) {
         puppet->mode = enemy.at("mode").get<u8>();
         puppet->flags = enemy.value("flags", actor->flags & PUPPET_FLAGS);
         puppet->targetMode = enemy.value("targetMode", actor->targetMode);
+        puppet->hurtColliders = enemy.value("hurt", UINT32_MAX);
         puppet->hasNewFrame = true;
         puppet->state = enemy.value("state", std::vector<u8>{});
         puppet->phase = enemy.value("phase", (u16)0);
@@ -2733,6 +2836,10 @@ static void UpdateWithTarget(Actor* actor, Player* target) {
     if (bossAction == nullptr) {
         ApplyCoopTouchingTarget(actor, target);
         UpdateWithPlayer(actor, target);
+        const CoopEnemyAdapter* adapter = FindCoopEnemyAdapter(actor);
+        if (adapter != nullptr && Anchor::Instance->IsCoopRoomAuthority()) {
+            ApplyCoopFacingColliders(actor, adapter, GET_PLAYER(gPlayState)->actor.world.pos);
+        }
         return;
     }
 
@@ -2898,6 +3005,7 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
             payload["actor"] = GetCoopActorIdentity(actor);
             payload["collider"] = i;
             payload["element"] = elementIndex;
+            payload["weapon"] = attacker->id;
             payload["dmgFlags"] = hitInfo->acHitInfo->toucher.dmgFlags;
             payload["effect"] = hitInfo->acHitInfo->toucher.effect;
             payload["damage"] = hitInfo->acHitInfo->toucher.damage;
@@ -2972,7 +3080,9 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
         adapter->animatePuppet(actor);
     }
 
-    // Can be hit and pushed, but never attacks (only the authority's real enemy does)
+    // Can be hit and pushed, but never attacks (only the authority's real enemy does). It can only be hit where the
+    // authority's can right now: what that one only puts up for a moment (a shield while blocking) would otherwise be
+    // in the way of our weapons all the time, so they'd bounce off it.
     size_t offsetIndex = 0;
     for (size_t i = 0; i < adapter->hurtColliderOffsets.size(); i++) {
         Collider* collider = GetHurtCollider(actor, adapter, i);
@@ -2986,11 +3096,19 @@ bool Anchor::UpdateCoopPuppet(Actor* actor) {
             offsetIndex++;
         });
 
-        if (collider->acFlags & AC_ON) {
-            CollisionCheck_SetAC(gPlayState, &gPlayState->colChkCtx, collider);
-        }
         if (collider->ocFlags1 & OC1_ON) {
             CollisionCheck_SetOC(gPlayState, &gPlayState->colChkCtx, collider);
+        }
+    }
+    for (size_t i = 0; i < adapter->hurtColliderOffsets.size(); i++) {
+        if (!(puppet->hurtColliders & (1u << i))) {
+            continue;
+        }
+        Collider* collider = adapter->getFacingHurtCollider != nullptr
+                                 ? adapter->getFacingHurtCollider(actor, i, GET_PLAYER(gPlayState)->actor.world.pos)
+                                 : GetHurtCollider(actor, adapter, i);
+        if ((collider->acFlags & AC_ON) && FindRegisteredAC(collider) < 0) {
+            CollisionCheck_SetAC(gPlayState, &gPlayState->colChkCtx, collider);
         }
     }
 
@@ -3242,15 +3360,11 @@ static bool CanBeCoopTarget(Player* player) {
 // Picks the player the enemy goes after (see Threat): the one in the room with the most threat, or while nobody has
 // any, the nearest one. Either way it sticks with its target unless another player clearly has more threat or is
 // clearly closer.
-static Player* ChooseCoopEnemyTarget(Actor* actor, const std::vector<uint32_t>& peers, uint32_t& targetClientId) {
-    uint32_t ownClientId = Anchor::Instance->ownClientId;
-    bool isBoss = IsCoopBoss(actor);
-    CoopThreat* threat = GetCoopThreat(actor);
-    DecayCoopThreat(threat, isBoss);
-
+// The players in the room that can be gone after, by client id (ours too)
+static std::vector<std::pair<uint32_t, Player*>> GetCoopTargetCandidates(const std::vector<uint32_t>& peers) {
     std::vector<std::pair<uint32_t, Player*>> candidates;
     if (CanBeCoopTarget(GET_PLAYER(gPlayState))) {
-        candidates.push_back({ ownClientId, GET_PLAYER(gPlayState) });
+        candidates.push_back({ Anchor::Instance->ownClientId, GET_PLAYER(gPlayState) });
     }
     for (uint32_t clientId : peers) {
         AnchorClient& client = Anchor::Instance->clients[clientId];
@@ -3258,6 +3372,16 @@ static Player* ChooseCoopEnemyTarget(Actor* actor, const std::vector<uint32_t>& 
             candidates.push_back({ clientId, client.player });
         }
     }
+    return candidates;
+}
+
+static Player* ChooseCoopEnemyTarget(Actor* actor, const std::vector<uint32_t>& peers, uint32_t& targetClientId) {
+    uint32_t ownClientId = Anchor::Instance->ownClientId;
+    bool isBoss = IsCoopBoss(actor);
+    CoopThreat* threat = GetCoopThreat(actor);
+    DecayCoopThreat(threat, isBoss);
+
+    std::vector<std::pair<uint32_t, Player*>> candidates = GetCoopTargetCandidates(peers);
     if (candidates.empty()) {
         targetClientId = 0;
         return GET_PLAYER(gPlayState);
@@ -3387,10 +3511,10 @@ void Anchor::OnCoopFloormasterInit(Actor* actor) {
  * COOP_SHOT_STATE
  *
  * Shots that a player plays back at the boss (Phantom Ganon's energy balls) are run by the game of the player they fly
- * at: only there can that player hit them back, or be hit by them. Once one flies back at the boss (or the boss returns
- * it), the authority's game runs it, since that's where the boss is. Everyone else's copy doesn't run by itself, it
- * follows the state the game running it sends every frame. When the shot ends there, it ends for everyone, along with
- * what that does to the boss.
+ * at: only there can they hit that player. Another player hitting their copy of it takes it over, and their game runs
+ * it from there. Once one flies back at the boss (or the boss returns it), the authority's game runs it, since that's
+ * where the boss is. Everyone else's copy doesn't run by itself, it follows the state the game running it sends every
+ * frame. When the shot ends there, it ends for everyone, along with what that does to the boss.
  */
 
 struct CoopShotAdapter {
@@ -3402,6 +3526,8 @@ struct CoopShotAdapter {
     void (*onFollow)(Actor* actor); // Its look while it follows another game's (its own update doesn't run)
     void (*onEnded)(Actor* actor, bool isAuthority); // When it ended in the game running it, for the others
     size_t colliderOffset;                           // Its cylinder, which our player hits back
+    // The boss sends it back at a random player each time, rather than the one it goes after (Ganondorf's tennis)
+    bool returnsAtRandomPlayer = false;
 };
 
 static bool IsEnergyBall(Actor* actor) {
@@ -3523,7 +3649,8 @@ static const std::vector<CoopShotAdapter> sCoopShotAdapters = {
       [](Actor* actor) { return ((BossGanon*)actor)->unk_1A8 != 0; },
       FollowGanondorfLightBall,
       EndGanondorfLightBall,
-      offsetof(BossGanon, collider) },
+      offsetof(BossGanon, collider),
+      true },
     { ACTOR_BOSS_TW,
       IsTwinrovaBlast,
       { STATE_RANGE(BossTw, work, fogR), STATE_FIELD(BossTw, csState1), STATE_FIELD(BossTw, magicDir),
@@ -3551,6 +3678,11 @@ struct CoopShot {
     uint32_t target; // Who it flies at (when it does)
     u32 lastStateFrame;
     bool hasEnded = false;
+    // Goes up whenever a game takes it over rather than being handed it (see UpdateCoopShot), so that what the game
+    // running it before sent meanwhile is ignored
+    u32 takeovers = 0;
+    bool hasReturnTarget =
+        false; // Who the boss sends it back at was picked, while it flies back (returnsAtRandomPlayer)
 };
 static ObjectExtension::Register<CoopShot> CoopShotRegister;
 
@@ -3610,25 +3742,55 @@ bool Anchor::UpdateCoopShot(Actor* actor) {
     if (shot->owner != ownClientId && IsCoopRoomAuthority() &&
         gPlayState->gameplayFrames - shot->lastStateFrame > SHOT_TAKEOVER_FRAMES) {
         shot->owner = ownClientId;
+        shot->takeovers++;
         ClearCoopShotHit(actor, adapter);
     }
 
     if (shot->owner != ownClientId) {
-        // Keeps flying the way it did, until the next state comes in
+        // Our weapon or shield hit it while it flew at a teammate. It's ours to run from now on, as if it flew at us:
+        // its own update takes the hit, and sends it back at the boss or charges our shield.
+        ColliderCylinder* collider = (ColliderCylinder*)((uintptr_t)actor + adapter->colliderOffset);
+        if (!shot->hasEnded && adapter->isFlyingAtPlayer(actor) && (collider->base.acFlags & AC_HIT) &&
+            IsCoopOwnedByUs(collider->base.ac)) {
+            shot->owner = ownClientId;
+            shot->target = ownClientId;
+            shot->takeovers++;
+            return false;
+        }
+
+        // Keeps flying the way it did, until the next state comes in. It hits no one, but our weapons can hit it.
         if (!shot->hasEnded) {
             Actor_UpdateVelocityXYZ(actor);
             Actor_UpdatePos(actor);
             adapter->onFollow(actor);
+            if (adapter->isFlyingAtPlayer(actor)) {
+                Collider_UpdateCylinder(actor, collider);
+                CollisionCheck_SetAC(gPlayState, &gPlayState->colChkCtx, &collider->base);
+            }
         }
         return true;
     }
 
     // The authority runs it while it isn't flying at a player, and the boss returning it sends it at the player the
-    // boss goes after
+    // boss goes after. One flying at a player stays on them (like one we took over).
     if (IsCoopRoomAuthority()) {
-        const CoopEnemyTarget* bossTarget =
-            actor->parent != nullptr ? ObjectExtension::GetInstance().Get<CoopEnemyTarget>(actor->parent) : nullptr;
-        shot->target = (bossTarget != nullptr && bossTarget->clientId != 0) ? bossTarget->clientId : ownClientId;
+        if (!adapter->isFlyingAtPlayer(actor) && adapter->returnsAtRandomPlayer) {
+            // Once a player sent it back, the boss sends it at any of the players in the room, picked once each time
+            if (!shot->hasReturnTarget) {
+                std::vector<std::pair<uint32_t, Player*>> candidates = GetCoopTargetCandidates(GetCoopPeers(true));
+                if (candidates.empty()) {
+                    shot->target = ownClientId;
+                } else {
+                    size_t pick = std::min((size_t)(Rand_ZeroOne() * candidates.size()), candidates.size() - 1);
+                    shot->target = candidates[pick].first;
+                }
+                shot->hasReturnTarget = true;
+            }
+        } else if (!adapter->isFlyingAtPlayer(actor)) {
+            const CoopEnemyTarget* bossTarget =
+                actor->parent != nullptr ? ObjectExtension::GetInstance().Get<CoopEnemyTarget>(actor->parent) : nullptr;
+            shot->target = (bossTarget != nullptr && bossTarget->clientId != 0) ? bossTarget->clientId : ownClientId;
+        }
         Player* target = GetCoopClientPlayer(shot->target);
         if (target != nullptr) {
             UpdateWithTarget(actor, target);
@@ -3650,6 +3812,9 @@ void Anchor::SendCoopShotState(Actor* actor, bool isRemoved) {
 
     uint32_t authority = GetCoopRoomAuthority();
     bool wasFlyingAtPlayer = shot->owner == shot->target;
+    if (adapter->isFlyingAtPlayer(actor)) {
+        shot->hasReturnTarget = false; // The next time it comes back, the boss picks again
+    }
     shot->hasEnded = adapter->hasEnded(actor) || isRemoved;
     shot->owner = adapter->isFlyingAtPlayer(actor) ? shot->target : (authority != 0 ? authority : ownClientId);
 
@@ -3664,6 +3829,7 @@ void Anchor::SendCoopShotState(Actor* actor, bool isRemoved) {
 
     nlohmann::json payload = PrepCoopPayload(COOP_SHOT_STATE);
     payload["shotId"] = shot->id;
+    payload["takeovers"] = shot->takeovers;
     payload["owner"] = shot->owner;
     payload["target"] = shot->target;
     payload["pos"] = actor->world.pos;
@@ -3694,6 +3860,17 @@ void Anchor::HandlePacket_CoopShotState(nlohmann::json payload) {
             if (shot->hasEnded) {
                 return;
             }
+
+            // Not from a game that ran it before someone took it over. When two took it over at once, the one with
+            // the higher id keeps it.
+            u32 takeovers = payload.value("takeovers", 0u);
+            uint32_t sender = payload.at("clientId").get<uint32_t>();
+            if (takeovers < shot->takeovers ||
+                (takeovers == shot->takeovers && shot->owner == ownClientId &&
+                 payload.at("owner").get<uint32_t>() == sender && sender < ownClientId)) {
+                return;
+            }
+            shot->takeovers = takeovers;
 
             ApplyCoopShotState(payload, actor, adapter);
             actor->world.pos = payload.at("pos").get<Vec3f>();

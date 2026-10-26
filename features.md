@@ -79,6 +79,10 @@ enemies between teammates, so they can play through the same areas together.
   it wakes up, a Deku Baba while it's out of the ground), and are only seen through the Lens of Truth when it is.
 - Hitting a puppet hits the authority's enemy, with its own damage table, reaction and death. That goes for what you
   shoot, throw or set off too: arrows, slingshot seeds, bombs, and a Deku Nut's flash stunning it.
+  - A puppet can only be hit where the authority's enemy can right now: a shield or armor it only puts up for a moment
+    (a Stalfos, Iron Knuckle or Gerudo blocking) is only in your way while it does.
+  - A Skulltula's legs are armored on the side facing you and soft behind, for each player, not only for the one it
+    goes after.
 - On the authority, enemies go after the most dangerous player in the room: whoever has the most threat. Damage dealt
   adds to a player's threat, and threat fades away over time (it halves every 8 seconds), so what counts is who hurt
   them lately. While nobody has any threat, they go after the nearest player, and switch once another one is clearly
@@ -128,9 +132,15 @@ enemies between teammates, so they can play through the same areas together.
     defeat cutscene, heart container and blue warp.
   - What it spawns during the fight is spawned for everyone (Queen Gohma's eggs and larvae).
 - Shots you play back at the boss (Phantom Ganon's and Ganondorf's energy balls, Ganondorf's big magic, Twinrova's
-  blasts) are run by the game of the player they fly at: only there can they be hit back, absorbed or dodged. Once one
-  flies back at the boss, the authority's game runs it, until the boss sends it at a player again. Everyone sees the
-  same shot, and when it ends (bursting on a player, hitting the boss, hitting the floor) it ends for everyone.
+  blasts) are run by the game of the player they fly at: only there can they burst on that player. Once one flies
+  back at the boss, the authority's game runs it, until the boss sends it at a player again. Everyone sees the same
+  shot, and when it ends (bursting on a player, hitting the boss, hitting the floor) it ends for everyone.
+  - Any player can hit one back, or catch it with their shield, while it flies at a teammate: hitting your copy of it
+    makes your game run it from there, as if it flew at you (a Twinrova blast charges your Mirror Shield). It doesn't
+    burst on you on its way, only on the player it flies at. What the game that ran it before still sent is ignored,
+    and when two players hit it at once, one of them keeps it.
+  - Ganondorf's tennis: his first ball goes to the player he goes after, but each time he hits it back, it's at a
+    random player in the room (whoever can be gone after), so the volley moves between players.
   - When one comes back to you, your last hit on it is cleared, so it only bounces back when you hit it again (Phantom
     Ganon's ball took the hit that sent it back before for a new one, so it couldn't get past a player).
   - The player it flies at gets it with what the boss gave it, like whether a Twinrova blast is fire or ice. That
@@ -141,6 +151,8 @@ enemies between teammates, so they can play through the same areas together.
 - King Dodongo swallows a bomb thrown into his mouth by any player: the thrower's game decides it, and his choking on
   it is shared.
 - Morpha's core can be pulled out by any player's hookshot: the puller's game moves it, and the authority's follows.
+- Barinade tells a boomerang from other weapons, a teammate's too: any player's boomerang stuns her while her jellies
+  are around her, so everyone can hurt her then.
 - While a boss holds you (Bongo Bongo's hand, Morpha's tentacle) or your hookshot holds it, it runs in your game by
   itself until it lets go, so you get away from it like in vanilla (hitting Morpha's core cuts her tentacle). A
   boss that starts a cutscene in your game during the fight (a Morpha tentacle keeps the camera on you until you've
@@ -304,6 +316,8 @@ enemies between teammates, so they can play through the same areas together.
   - Like-Like's wobble: puppets wobble, pulse and reach out like the authority's, moving towards the targets it sends
     every frame by themselves, so the wobble isn't in the exact same phase as the authority's
   - the Moblin's shield, which doesn't block from the front for teammates
+- Where a few enemies are weak still goes by the player they go after, not by who hits them: a Shell Blade's soft
+  spot, the extra damage of hitting a Wolfos from behind.
 - Enemies that act on the player they target directly (grab, freeze, damage outside of a normal hit) only go after the
   authority's own player:
   Floormaster, Wallmaster, ReDead, Gibdo, Like-Like, Moblin, Gerudo fighter, Dead Hand's hands, Dark Link (who
@@ -324,8 +338,6 @@ enemies between teammates, so they can play through the same areas together.
 
 ### Bosses
 
-- Barinade: a teammate's boomerang hitting her body near the end of the fight doesn't get the reaction of a boomerang
-  (it counts like any other hit).
 - A player still in a boss's intro runs their own boss until it's over, and one entering after the authority's boss
   was defeated gets the defeat right away.
 - Queen Gohma: only the authority's player can make her close her eye by aiming at her.
@@ -386,6 +398,11 @@ None of these have been tested in the game yet:
 
 - [ ] Two clients in co-op: rocks breaking when thrown, the carrying pose, and Deku Nut, arrow, seed and bomb hits on
   enemies a teammate runs
+- [ ] Hitting an enemy that goes after a teammate, from either game: a Skulltula from behind and from the front, a
+  Stalfos, Iron Knuckle and Gerudo fighter while they block and while they don't
+- [ ] Bosses with a player who isn't the one it goes after: hitting Phantom Ganon's and Ganondorf's balls back and
+  catching Twinrova's blasts while they fly at a teammate (also both at once), stunning Barinade with the boomerang
+- [ ] Ganondorf's tennis with three players: his returns go to random players, also after one of them pauses or dies
 - [ ] The room owner's enemy settings: seeded enemy randomizer, enemy sizes and Hyper Enemies/Bosses reaching
   teammates, and New Enemy Seed
 - [ ] Different seeds, including two Archipelago slots: a pot holding one of your checks stays for you, no drops cross
