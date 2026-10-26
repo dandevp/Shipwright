@@ -1894,6 +1894,11 @@ struct CoopForcedUpdate {};
 static ObjectExtension::Register<CoopForcedUpdate> CoopForcedUpdateRegister;
 
 void Anchor::UpdateCoopEnemyCulling() {
+    // Not before there's a scene (like on the boot logo, already connected to Anchor)
+    if (gPlayState == nullptr) {
+        return;
+    }
+
     bool keepUpdating = IsCoopSyncActive() && !GetCoopPeers(true).empty();
     for (Actor* actor = gPlayState->actorCtx.actorLists[ACTORCAT_ENEMY].head; actor != NULL; actor = actor->next) {
         bool isForced = ObjectExtension::GetInstance().Has<CoopForcedUpdate>(actor);
