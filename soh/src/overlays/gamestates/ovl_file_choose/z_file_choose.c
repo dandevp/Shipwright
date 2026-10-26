@@ -1877,7 +1877,6 @@ static void FileChoose_DrawArchipelagoMenuWindowContents(FileChooseContext* this
     uint8_t language = (gSaveContext.language == LANGUAGE_JPN) ? LANGUAGE_ENG : gSaveContext.language;
     uint8_t textAlpha = this->archipelagoUIAlpha;
 
-
     for (uint8_t index = ASM_START_ARCHIPELAGO; index <= ASM_CHANGE_CONNECTION_INFO; index++) {
         uint8_t textColorR = 255;
         uint8_t textColorG = 255;
@@ -1912,39 +1911,37 @@ static void FileChoose_DrawArchipelagoMenuWindowContents(FileChooseContext* this
     }
 
     // Server address text
-    Interface_DrawTextLine(this->state.gfxCtx,
-                           SohFileSelect_GetArchipelagoSettingText(ASM_SERVER_ADDRESS, language), 70, 120, 255, 255,
-                           255, textAlpha, 0.8f, true);
-    Interface_DrawTextLine(this->state.gfxCtx, CVarGetString(CVAR_REMOTE_ARCHIPELAGO("ServerAddress"), "No Data"),
-                           70, 130, 185, 185, 185, textAlpha, 0.8f, true);
+    Interface_DrawTextLine(this->state.gfxCtx, SohFileSelect_GetArchipelagoSettingText(ASM_SERVER_ADDRESS, language),
+                           70, 120, 255, 255, 255, textAlpha, 0.8f, true);
+    Interface_DrawTextLine(this->state.gfxCtx, CVarGetString(CVAR_REMOTE_ARCHIPELAGO("ServerAddress"), "No Data"), 70,
+                           130, 185, 185, 185, textAlpha, 0.8f, true);
 
     // Slot name text
     Interface_DrawTextLine(this->state.gfxCtx, SohFileSelect_GetArchipelagoSettingText(ASM_SLOT_NAME, language), 70,
                            145, 255, 255, 255, textAlpha, 0.8f, true);
-    Interface_DrawTextLine(this->state.gfxCtx, CVarGetString(CVAR_REMOTE_ARCHIPELAGO("SlotName"), "No Data"), 70,
-                           155, 185, 185, 185, textAlpha, 0.8f, true);
+    Interface_DrawTextLine(this->state.gfxCtx, CVarGetString(CVAR_REMOTE_ARCHIPELAGO("SlotName"), "No Data"), 70, 155,
+                           185, 185, 185, textAlpha, 0.8f, true);
 
     // Connection status text
-    int statusPos = 75 + Interface_DrawTextLine(this->state.gfxCtx,
-                                                SohFileSelect_GetArchipelagoSettingText(ASM_STATUS, language), 70,
-                                                175, 255, 255, 255, textAlpha, 0.8f, true);
+    int statusPos =
+        75 + Interface_DrawTextLine(this->state.gfxCtx, SohFileSelect_GetArchipelagoSettingText(ASM_STATUS, language),
+                                    70, 175, 255, 255, 255, textAlpha, 0.8f, true);
 
     switch (CVarGetInteger(CVAR_REMOTE_ARCHIPELAGO("ConnectionStatus"), 0)) {
         case 0: // Not Connected
             Interface_DrawTextLine(this->state.gfxCtx,
-                                   SohFileSelect_GetArchipelagoSettingText(ASM_NOT_CONNECTED, language), statusPos,
-                                   175, 255, 120, 120, textAlpha, 0.8f, true);
+                                   SohFileSelect_GetArchipelagoSettingText(ASM_NOT_CONNECTED, language), statusPos, 175,
+                                   255, 120, 120, textAlpha, 0.8f, true);
             break;
         case 1: // Connecting
         case 2: // Connection error, retrying
             Interface_DrawTextLine(this->state.gfxCtx,
-                                   SohFileSelect_GetArchipelagoSettingText(ASM_CONNECTING, language), statusPos,
-                                   175, 185, 185, 185, textAlpha, 0.8f, true);
+                                   SohFileSelect_GetArchipelagoSettingText(ASM_CONNECTING, language), statusPos, 175,
+                                   185, 185, 185, textAlpha, 0.8f, true);
             break;
         case 3: // Connected
-            Interface_DrawTextLine(this->state.gfxCtx,
-                                   SohFileSelect_GetArchipelagoSettingText(ASM_CONNECTED, language), statusPos, 175,
-                                   120, 255, 120, textAlpha, 0.8f, true);
+            Interface_DrawTextLine(this->state.gfxCtx, SohFileSelect_GetArchipelagoSettingText(ASM_CONNECTED, language),
+                                   statusPos, 175, 120, 255, 120, textAlpha, 0.8f, true);
             break;
         case 4: { // Loading the slot's data, in batches
             int offset = Interface_DrawTextLine(this->state.gfxCtx,
@@ -1959,8 +1956,8 @@ static void FileChoose_DrawArchipelagoMenuWindowContents(FileChooseContext* this
         }
         case 5: // Data loaded
             Interface_DrawTextLine(this->state.gfxCtx,
-                                   SohFileSelect_GetArchipelagoSettingText(ASM_DATA_LOADED, language), statusPos,
-                                   175, 120, 255, 120, textAlpha, 0.8f, true);
+                                   SohFileSelect_GetArchipelagoSettingText(ASM_DATA_LOADED, language), statusPos, 175,
+                                   120, 255, 120, textAlpha, 0.8f, true);
             break;
     }
 

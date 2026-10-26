@@ -71,7 +71,8 @@ jobs:
     - name: Build SoH
       run: |
         cmake --no-warn-unused-cli -H. -Bbuild-cmake -GNinja -DCMAKE_BUILD_TYPE:STRING=Release -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64" -DBUILD_REMOTE_CONTROL=1
-        cmake --build build-cmake -j
+        set -o pipefail
+        cmake --build build-cmake -j 2>&1 | tee build.log
         # Spotlight indexing the disk image CPack just made keeps hdiutil from
         # unmounting it, failing the build with "Resource busy"
         sudo mdutil -a -i off || true
@@ -79,6 +80,14 @@ jobs:
 
         mv _packages/*.dmg SoH.dmg
         mv README.md readme.txt
+    - name: Show build errors
+      # Job logs need admin rights to download, annotations don't (see the Windows build)
+      if: failure()
+      run: |
+        if [ -f build.log ]; then
+          message=$(grep -E -A3 'error:|CMake Error' build.log | grep -v '^--$' | head -80 | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error::$message"
+        fi
     - name: Upload build
       uses: actions/upload-artifact@v7
       with:
@@ -250,8 +259,9 @@ jobs:
       if: failure()
       run: |
         if (Test-Path build.log) {
-          $lines = Select-String -Path build.log -Context 0,2 -Pattern 'error [A-Z]+[0-9]+|\\soh\\(soh|src)\\.*warning C[0-9]+|CMake Error|FAILED:' |
+          $lines = Select-String -Path build.log -Context 0,2 -Pattern 'error [A-Z]+[0-9]+|\\soh\\(soh|src)\\.*warning C[0-9]+|CMake Error' |
             ForEach-Object { @($_.Line) + $_.Context.PostContext } |
+            Where-Object { $_ -notmatch 'cl\.exe|^\s*ccache' } |
             Select-Object -Unique -First 80
           $message = ($lines | ForEach-Object { $_.Trim() }) -join '%0A'
           Write-Output "::error::$message"

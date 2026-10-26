@@ -139,11 +139,15 @@ bool ArchipelagoClient::StartClient() {
         std::string apworldVersionMajor = seglist[0];
         std::string apworldVersionMinor = seglist[1];
 
-        if (clientVersionMajor != apworldVersionMajor || clientVersionMinor != apworldVersionMinor) {
+        // 1.5 only adds slot data keys, which are read with defaults that behave like 1.4
+        bool supportedMinor = apworldVersionMinor == clientVersionMinor ||
+                              apworldVersionMinor == AP_Client_consts::AP_WORLD_VERSION_MINOR_LEGACY;
+        if (clientVersionMajor != apworldVersionMajor || !supportedMinor) {
             disconnecting = true;
             std::string errorMessage =
                 "[ERROR] Client version does not match the APWorld version that\nwas used to generate the multiworld.\n"
-                "Supported version in this client is " +
+                "Supported versions in this client are " +
+                clientVersionMajor + "." + AP_Client_consts::AP_WORLD_VERSION_MINOR_LEGACY + ".x and " +
                 clientVersionMajor + "." + clientVersionMinor + ".x.\n" + "The used APWorld is on version " +
                 apworldVersionMajor + "." + apworldVersionMinor +
                 ".x instead.\nPlease use the SoH AP client matching the APWorld's version.\nAutomatically "
@@ -154,7 +158,7 @@ bool ArchipelagoClient::StartClient() {
 
         try {
             ArchipelagoHintWindow_ChangeHintableItems(slotData["hintable_items"]);
-        } catch (std::exception e) {
+        } catch (const std::exception&) {
             disconnecting = true;
             ArchipelagoConsole_SendMessage("[ERROR] Unable to load hintable items, disconnecting...");
             return;
@@ -590,7 +594,7 @@ void ArchipelagoClient::InitForeignHints() {
     std::map<std::string, std::vector<std::array<int64_t, 2>>> hintsData;
     try {
         hintsData = slotData["static_hints"];
-    } catch (std::exception e) {
+    } catch (const std::exception&) {
         disconnecting = true;
         ArchipelagoConsole_SendMessage("[ERROR] Unable to parse foreign hints, disconnecting...");
         return;
@@ -1629,27 +1633,27 @@ void LoadArchipelagoData() {
     });
 }
 
-void SaveArchipelagoData(SaveContext* saveContext, int sectionID, bool fullSave) {
-    SaveManager::Instance->SaveData("isArchipelago", saveContext->ship.quest.data.archipelago.isArchipelago);
+void SaveArchipelagoData(const SaveContext& saveContext, int sectionID, bool fullSave) {
+    SaveManager::Instance->SaveData("isArchipelago", saveContext.ship.quest.data.archipelago.isArchipelago);
     SaveManager::Instance->SaveData("lastReceivedItemIndex",
-                                    saveContext->ship.quest.data.archipelago.lastReceivedItemIndex);
+                                    saveContext.ship.quest.data.archipelago.lastReceivedItemIndex);
 
-    SaveManager::Instance->SaveData("roomHash", saveContext->ship.quest.data.archipelago.roomHash);
-    SaveManager::Instance->SaveData("slotName", saveContext->ship.quest.data.archipelago.slotName);
-    SaveManager::Instance->SaveData("archiUri", saveContext->ship.quest.data.archipelago.archiUri);
+    SaveManager::Instance->SaveData("roomHash", saveContext.ship.quest.data.archipelago.roomHash);
+    SaveManager::Instance->SaveData("slotName", saveContext.ship.quest.data.archipelago.slotName);
+    SaveManager::Instance->SaveData("archiUri", saveContext.ship.quest.data.archipelago.archiUri);
     SaveManager::Instance->SaveData("roomPass", gSaveContext.ship.quest.data.archipelago.roomPass);
 
     SaveManager::Instance->SaveArray(
-        "locations", ARRAY_COUNT(saveContext->ship.quest.data.archipelago.locations), [&](size_t i) {
+        "locations", ARRAY_COUNT(saveContext.ship.quest.data.archipelago.locations), [&](size_t i) {
             SaveManager::Instance->SaveStruct("", [&]() {
                 SaveManager::Instance->SaveData("itemFlags",
-                                                saveContext->ship.quest.data.archipelago.locations[i].itemFlags);
+                                                saveContext.ship.quest.data.archipelago.locations[i].itemFlags);
                 SaveManager::Instance->SaveData("itemName",
-                                                saveContext->ship.quest.data.archipelago.locations[i].itemName);
+                                                saveContext.ship.quest.data.archipelago.locations[i].itemName);
                 SaveManager::Instance->SaveData("hintName",
-                                                saveContext->ship.quest.data.archipelago.locations[i].hintName);
+                                                saveContext.ship.quest.data.archipelago.locations[i].hintName);
                 SaveManager::Instance->SaveData("playerName",
-                                                saveContext->ship.quest.data.archipelago.locations[i].playerName);
+                                                saveContext.ship.quest.data.archipelago.locations[i].playerName);
             });
         });
 

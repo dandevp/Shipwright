@@ -63,6 +63,29 @@ string(SUBSTRING "${GIT_COMMIT_HASH}" 0 7 SHORT_COMMIT_HASH)
 
 set(CMAKE_PROJECT_GIT_COMMIT_HASH "${SHORT_COMMIT_HASH}" CACHE STRING "Git commit hash" FORCE)
 
+# Configure again when the checked out commit changes, else the build keeps the hash it was configured with. Anchor
+# compares it between players, so a stale one makes the same code look like an incompatible version.
+execute_process(
+    COMMAND git rev-parse --absolute-git-dir
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+execute_process(
+    COMMAND git rev-parse --symbolic-full-name HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_HEAD_REF
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+if(GIT_DIR AND EXISTS "${GIT_DIR}/HEAD")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${GIT_DIR}/HEAD")
+    if(GIT_HEAD_REF AND EXISTS "${GIT_DIR}/${GIT_HEAD_REF}")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${GIT_DIR}/${GIT_HEAD_REF}")
+    endif()
+endif()
+
 execute_process(
     COMMAND git describe --tags --abbrev=0 --exact-match HEAD
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}

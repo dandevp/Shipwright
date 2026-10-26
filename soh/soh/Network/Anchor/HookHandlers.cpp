@@ -103,6 +103,7 @@ void Anchor::RegisterHooks() {
             OnCoopRoomChanged();
         }
 
+        coopSceneLoading = false;
         UpdateCoopRoomAuthority();
         SendPacket_PlayerUpdate();
     });
@@ -111,6 +112,8 @@ void Anchor::RegisterHooks() {
         // Normally cleared after each actor update already, but an update can be skipped by another hook
         coopUpdatingActor = nullptr;
         ProcessIncomingPacketQueue();
+        UpdateCoopPause();
+        UpdateCoopWhilePaused();
         ApplyCoopPendingHits();
         RefreshCoopNpcs();
         UpdateCoopCarriedCopies();
@@ -283,6 +286,7 @@ void Anchor::RegisterHooks() {
         coopPendingHits.clear();
         ResetCoopBossThreat();
         coopNpcRefreshPending = false;
+        coopSceneLoading = true;
     });
 
     COND_HOOK(ShouldActorInit, isConnected, [&](void* refActor, bool* should) {
@@ -362,6 +366,15 @@ void Anchor::RegisterHooks() {
                  [&](void* refActor) { OnCoopStatueInit((Actor*)refActor); });
     COND_ID_HOOK(OnActorUpdate, ACTOR_BG_JYA_COBRA, isConnected,
                  [&](void* refActor) { OnCoopStatueUpdated((Actor*)refActor); });
+
+    // Signs cut by teammates, and toggle switches they toggled
+
+    COND_ID_HOOK(ShouldActorUpdate, ACTOR_EN_KANBAN, isConnected,
+                 [&](void* refActor, bool* should) { OnCoopSignUpdating((Actor*)refActor); });
+    COND_ID_HOOK(OnActorUpdate, ACTOR_EN_KANBAN, isConnected,
+                 [&](void* refActor) { OnCoopSignUpdated((Actor*)refActor); });
+    COND_ID_HOOK(OnActorUpdate, ACTOR_OBJ_SWITCH, isConnected,
+                 [&](void* refActor) { UpdateCoopToggleSwitch((Actor*)refActor); });
 
     // Only one player can move them at a time
     COND_ID_HOOK(ShouldActorUpdate, ACTOR_OBJ_OSHIHIKI, isConnected,

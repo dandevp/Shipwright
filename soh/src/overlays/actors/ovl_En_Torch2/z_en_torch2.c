@@ -169,6 +169,15 @@ void EnTorch2_Init(Actor* thisx, PlayState* play2) {
     sSpawnPoint = this->actor.home.pos;
 }
 
+// For co-op (Anchor): a teammate's puppet of Dark Link fades in and out like the authority's
+u8 EnTorch2_GetAlpha(void) {
+    return sAlpha;
+}
+
+void EnTorch2_SetAlpha(u8 alpha) {
+    sAlpha = alpha;
+}
+
 void EnTorch2_Destroy(Actor* thisx, PlayState* play) {
     s32 pad;
     Player* this = (Player*)thisx;
