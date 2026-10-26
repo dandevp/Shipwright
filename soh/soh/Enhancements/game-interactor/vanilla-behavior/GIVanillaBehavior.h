@@ -46,9 +46,25 @@ typedef enum {
     // true
     // ```
     // #### `args`
+    // - `*Color_RGB8`
+    VB_APPLY_MAGIC_METER_FILL_COLOR,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
     // - `*BossVa`
     // - `s8*` sCsState
     VB_BARINADE_DEATH_SCENE,
+
+    // #### `result`
+    // ```c
+    // Flags_GetEventChkInf(EVENTCHKINF_BEGAN_BARINA_BATTLE)
+    // ```
+    // #### `args`
+    // - `*BossVa`
+    VB_BARINADE_PLAY_REMATCH_INTRO,
 
     // #### `result`
     // ```c
@@ -600,6 +616,14 @@ typedef enum {
 
     // #### `result`
     // ```c
+    // Flags_GetSwitch(play, (this->actor.params & 0xFC00) >> 0xA)
+    // ```
+    // #### `args`
+    // - `*EnGo2`
+    VB_DESPAWN_FREED_FIRE_GORON,
+
+    // #### `result`
+    // ```c
     // Flags_GetItemGetInf(ITEMGETINF_30)
     // ```
     // #### `args`
@@ -693,6 +717,11 @@ typedef enum {
     // In `KaleidoScope_DrawAmmoCount`:
     // ```c
     // true
+    // ```
+    // In `ItemInSlotUsesAmmo` (pause menu, with Better Ammo Rendering):
+    // ```c
+    // item == ITEM_STICK || item == ITEM_NUT || item == ITEM_BOMB || item == ITEM_BOW ||
+    //     item == ITEM_SLINGSHOT || item == ITEM_BOMBCHU || item == ITEM_BEAN
     // ```
     // #### `args`
     // - `*int16_t` (item id)
@@ -1164,6 +1193,14 @@ typedef enum {
     // #### `args`
     // - `*Actor` (EnDivingGame - &this->actor)
     VB_GIVE_ITEM_FROM_DIVING_MINIGAME,
+
+    // #### `result`
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*EnGo2`
+    VB_GIVE_ITEM_FROM_FIRE_GORON,
 
     // #### `result`
     // ```c
@@ -1839,6 +1876,14 @@ typedef enum {
 
     // #### `result`
     // ```c
+    // true
+    // ```
+    // #### `args`
+    // - None
+    VB_MAGIC_METER_DEPLETE_WHILE_CONSUMING,
+
+    // #### `result`
+    // ```c
     // CHECK_QUEST_ITEM(QUEST_SONG_EPONA)
     // ```
     // #### `args`
@@ -2008,6 +2053,16 @@ typedef enum {
     // #### `args`
     // - `*EnKo`
     VB_OPEN_KOKIRI_FOREST,
+
+    // #### `result`
+    // In `Interface_DrawAmmoCount` and `KaleidoScope_DrawAmmoCount`:
+    // ```c
+    // true
+    // ```
+    // #### `args`
+    // - `*int16_t` (item id)
+    // - `*int16_t` (ammo count)
+    VB_OVERRIDE_AMMO_COUNT,
 
     // #### `result`
     // ```c
@@ -2234,6 +2289,7 @@ typedef enum {
     // ```
     // #### `args`
     // - `*BossGanon`
+    // - `u16` text ID
     VB_PLAY_GANONDORF_INTRO_CS,
 
     // #### `result`
